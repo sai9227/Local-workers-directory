@@ -1,0 +1,7 @@
+{
+  "name": "Local Workers - Rajahmundry Artisan & Resident Network",
+  "description": "Verified municipal directory and on-demand home service network for Rajahmundry residents and artisans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

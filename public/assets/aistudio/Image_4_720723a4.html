@@ -1,0 +1,1569 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Local Workers - Interactive App</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#006c49",
+          "primary-container": "#10b981",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#00422b",
+          "secondary": "#416656",
+          "secondary-container": "#c3ecd7",
+          "on-secondary-container": "#002115",
+          "surface": "#f8f9ff",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#eff4ff",
+          "surface-container": "#e6eeff",
+          "surface-container-high": "#dee9fc",
+          "surface-container-highest": "#d9e3f6",
+          "on-surface": "#121c2a",
+          "on-surface-variant": "#3c4a42",
+          "outline-variant": "#bbcabf",
+          "error": "#ba1a1a",
+          "error-container": "#ffdad6"
+        },
+        fontFamily: {
+          sans: ["Inter", "sans-serif"],
+          heading: ["Plus Jakarta Sans", "sans-serif"]
+        }
+      }
+    }
+  };
+</script>
+<style>
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-thumb { background: #bbcabf; border-radius: 9999px; }
+  .active-nav { background-color: #10b981 !important; color: #ffffff !important; font-weight: 600 !important; }
+</style>
+</head>
+<body class="bg-surface font-sans text-on-surface antialiased selection:bg-primary-container selection:text-white">
+<!-- QUICK NAV HELPER TOPBAR -->
+<div class="fixed top-0 left-0 right-0 h-9 bg-slate-900 text-slate-200 text-xs z-[100] flex items-center justify-between px-4 border-b border-slate-700">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+<span class="font-semibold text-emerald-400">Interactive Mode</span>
+<span class="text-slate-400 hidden sm:inline">| Auth, OTP, Account Creation &amp; Dashboards</span>
+</div>
+<div class="flex items-center gap-1.5 overflow-x-auto">
+<span class="text-[11px] text-slate-400 mr-1 hidden md:inline">Jump:</span>
+<button class="px-2 py-0.5 rounded bg-rose-900/60 hover:bg-rose-700 text-rose-100 text-[11px]" onclick="navigate('role-selection')">Sign Out / Auth Portal</button>
+<button class="px-2 py-0.5 rounded bg-emerald-700/60 hover:bg-emerald-600 text-white text-[11px]" onclick="navigate('resident-home')">Resident Home</button>
+<button class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]" onclick="navigate('resident-request-detail')">Request &amp; Offers</button>
+<button class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]" onclick="navigate('worker-feed')">Worker Feed</button>
+<button class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]" onclick="navigate('worker-detail')">Worker Job Detail</button>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- 1. RESIDENT PORTAL SHELL & PAGES                        -->
+<!-- ======================================================== -->
+<div class="min-h-screen pt-9 hidden" id="resident-shell">
+<!-- Top Header -->
+<header class="fixed top-9 left-0 right-0 h-16 bg-white/95 backdrop-blur-md shadow-sm z-50 flex items-center justify-between px-6 border-b border-surface-container">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2.5 text-left group" onclick="navigate('resident-home')">
+<div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[20px]">home_repair_service</span>
+</div>
+<div class="flex flex-col">
+<span class="font-heading font-bold text-lg text-primary leading-tight">Local Workers</span>
+<span class="text-xs text-on-surface-variant leading-none">Resident Portal</span>
+</div>
+</button>
+<div class="h-6 w-px bg-slate-200"></div>
+<div class="relative"><button id="headerLocBtn" type="button" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low text-xs font-medium text-on-surface cursor-pointer hover:bg-surface-container transition-colors focus:outline-none" onclick="toggleLocationModal()"><span class="material-symbols-outlined text-primary text-[16px]">location_on</span><span id="headerResidentArea" class="">Danavaipeta, Rajahmundry</span><span class="material-symbols-outlined text-slate-400 text-[14px]">expand_more</span></button></div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative cursor-pointer" onclick="showToast('2 nearby workers available for rapid dispatch')">
+<button class="p-2 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-container"></span>
+</div>
+<div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+<div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-sm" id="residentAvatarInitials">AS</div>
+<div class="hidden sm:flex flex-col text-left">
+<span class="text-xs font-semibold text-on-surface leading-tight" id="residentTopName">Ananya Sharma</span>
+<span class="text-[11px] text-primary font-medium leading-tight max-w-[180px] truncate" id="residentTopAddress">Flat #402, Krishna Res.</span>
+</div>
+<button class="ml-2 flex items-center gap-1 px-3 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors" onclick="signOutToAuth()" title="Sign out to Role Selection">
+<span class="material-symbols-outlined text-[16px]">logout</span>
+<span class="hidden md:inline">Sign Out</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Left Sidebar -->
+<aside class="fixed left-0 bottom-0 w-60 bg-white shadow-sm z-40 flex flex-col justify-between py-6 px-4 border-r border-surface-container top-16">
+<div class="flex flex-col gap-1.5">
+<span class="px-2 text-[11px] font-bold text-slate-400 tracking-wider uppercase mb-1">Resident Menu</span>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-semibold active-nav transition-colors" id="res-nav-home" onclick="navigate('resident-home')">
+<span class="material-symbols-outlined text-[20px]">home</span>
+<span class="">Home</span>
+</button>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors" id="res-nav-requests" onclick="navigate('resident-request-detail')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px]">assignment</span>
+<span class="">My Requests</span>
+</div>
+<span class="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold" id="resSidebarCount">3</span>
+</button>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors" id="res-nav-messages" onclick="openMessagesInboxModal('ananya')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px]">chat_bubble</span>
+<span class="">Messages</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+</button>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors" id="res-nav-payments" onclick="openResidentTab('payments')">
+<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+<span class="">Payments</span>
+</button>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors" id="res-nav-profile" onclick="openResidentTab('profile')">
+<span class="material-symbols-outlined text-[20px]">person</span>
+<span class="">Profile</span>
+</button>
+</div>
+<!-- Guarantee Box -->
+<div class="p-3.5 rounded-xl bg-secondary-container/60 border border-emerald-100 text-xs">
+<div class="flex items-center gap-1.5 text-primary font-bold mb-1">
+<span class="material-symbols-outlined text-[16px]">verified_user</span>
+<span class="">Resident Guarantee</span>
+</div>
+<p class="text-slate-600 leading-snug">All technicians servicing Danavaipeta carry verified Aadhaar and police clearance.</p>
+</div>
+</aside>
+<!-- Main View Container -->
+<div class="pl-60">
+<main class="pt-16 p-6 min-h-[calc(100vh-2.25rem)]">
+<!-- PAGE: RESIDENT HOME -->
+<section class="page-view flex flex-col gap-6 hidden" id="view-resident-home">
+<!-- Welcome Strip -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<div class="flex items-center gap-2">
+<h1 class="text-2xl font-heading font-bold text-on-surface">Welcome back, <span id="welcomeResidentName" class="">Ananya</span></h1>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-primary text-xs font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified</span> Verified Resident
+              </span>
+</div>
+<p class="text-xs text-on-surface-variant mt-0.5" id="welcomeResidentAddress">Krishna Residency, Flat #402, Danavaipeta, Rajahmundry • RMC Ward 14</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs shadow-sm flex items-center gap-2 transition-colors" onclick="showToast('Redirecting to Rajahmundry Local Workers WhatsApp Desk (+91 94401 22334)...')">
+<span class="material-symbols-outlined text-[18px]">chat</span>
+<span class="">WhatsApp Booking</span>
+</button>
+<div class="cursor-pointer px-4 py-2 rounded-xl bg-white shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-3" onclick="navigate('resident-request-detail')">
+<div class="w-8 h-8 rounded-full bg-emerald-100 text-primary flex items-center justify-center font-bold text-xs">1</div>
+<div>
+<span class="text-xs font-bold block text-on-surface">Confirmed Visit</span>
+<span class="text-[11px] text-slate-500">Scheduled Tomorrow</span>
+</div>
+</div>
+<div class="cursor-pointer px-4 py-2 rounded-xl bg-white shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-3" onclick="navigate('resident-request-detail')">
+<div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs" id="statOpenCount">3</div>
+<div>
+<span class="text-xs font-bold block text-on-surface">Active Requests</span>
+<span class="text-[11px] text-slate-500">Review quotes</span>
+</div>
+</div>
+</div>
+</div>
+<!-- High Priority Scheduled Banner -->
+<div class="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-all" id="featuredVisitCard"><div class="bg-gradient-to-r from-primary via-emerald-800 to-primary-container px-5 py-3 text-white flex flex-wrap items-center justify-between gap-2"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-emerald-300 text-[18px]">event_available</span><span class="text-xs font-bold uppercase tracking-wider text-emerald-100" id="featCardHeaderLabel">Active Selected Visit</span><span class="px-2 py-0.5 rounded-full bg-white/20 text-[11px] font-semibold text-white" id="featCardSlot">Tomorrow, 10:30 AM</span></div><div class="flex items-center gap-1.5 text-xs text-emerald-200"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span id="featCardStatusText" class="">Confirmed &amp; Dispatched</span></div></div><div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white"><div class="flex items-center gap-4"><div class="relative"><img alt="Pro Avatar" class="w-14 h-14 rounded-full object-cover border-2 border-primary" id="featProAvatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCd4GDujCygHjoezWcnRPmktGucjIYYEjYXFJyvHLhfpc1UgqxRdcGaT-PniCmyl1j-yDxWW4mHnIjvlSv5cDKp9BjlCdFWT00NykaTrxr7OqZ2TCIIWJpOEfGjQvEU1-flyu2wcvgZpEqyFuyGatSNym9BOvWeWCyEhwePqjbAoL-FOtlghYJccaeVyR_kCTBhqBks45cJg2TJbN_iWMPryMnqxHE5pQOC0XBbPg"><span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></span></div><div class="flex flex-col"><div class="flex items-center gap-2 mb-0.5"><span class="px-2 py-0.5 rounded bg-emerald-100 text-primary text-[10px] font-bold uppercase" id="featTradeBadge">Electrical</span><span class="text-xs text-slate-500" id="featLocationText">Krishna Residency, Flat #402</span></div><h2 class="text-lg font-heading font-bold text-on-surface" id="featTitle">Electrician Visit with Ramesh Kumar</h2><p class="text-xs text-slate-600 mt-0.5" id="featDetails">Visiting Fee: ₹299 (Standard Inspection) • ID &amp; Police Verified • 4.9 ★ (184 reviews)</p></div></div><div class="flex items-center gap-2 shrink-0 flex-wrap"><button class="px-3.5 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-primary font-semibold text-xs transition-colors flex items-center gap-1.5 border border-primary/20" id="featCallBtn" onclick="showToast('Connecting call to pro (+91 98765 43210)...')"><span class="material-symbols-outlined text-[16px]">call</span><span class="">Call Pro</span></button><button class="px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-colors flex items-center gap-1.5" id="featChatBtn" onclick="openResidentTab('messages')"><span class="material-symbols-outlined text-[16px]">chat</span><span class="">Chat</span></button><button class="px-3.5 py-1.5 rounded-full bg-primary hover:bg-emerald-800 text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-sm" onclick="navigate('resident-request-detail')"><span class="">View Offers &amp; Details</span><span class="material-symbols-outlined text-[16px]">arrow_forward</span></button></div></div></div>
+<!-- Two Column: Post Form & Ongoing Requests -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left: Post Request -->
+<div class="lg:col-span-7 bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col gap-4">
+<div class="flex items-center justify-between border-b border-slate-100 pb-3">
+<div>
+<span class="text-[11px] font-bold text-primary tracking-wider uppercase">Resident Express Booking</span>
+<h3 class="text-lg font-heading font-bold text-on-surface">Post a New Service Request</h3>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">Danavaipeta Hub</span>
+</div>
+<!-- Form -->
+<form class="flex flex-col gap-3.5" onsubmit="handlePostRequest(event)">
+<div>
+<label class="text-xs font-bold text-on-surface mb-1.5 block">Select Trade Needed</label>
+<div class="grid grid-cols-3 sm:grid-cols-5 gap-2" id="tradeBtnGroup">
+<button class="trade-chip p-2 rounded-lg bg-primary-container text-white text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all" data-trade="Electrician" onclick="selectTrade('Electrician')" type="button">
+<span class="material-symbols-outlined text-[20px]">bolt</span>
+<span class="">Electrician</span>
+</button>
+<button class="trade-chip p-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-medium flex flex-col items-center justify-center gap-1 hover:bg-emerald-50 transition-all" data-trade="Plumber" onclick="selectTrade('Plumber')" type="button">
+<span class="material-symbols-outlined text-[20px]">plumbing</span>
+<span class="">Plumber</span>
+</button>
+<button class="trade-chip p-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-medium flex flex-col items-center justify-center gap-1 hover:bg-emerald-50 transition-all" data-trade="Carpenter" onclick="selectTrade('Carpenter')" type="button">
+<span class="material-symbols-outlined text-[20px]">carpenter</span>
+<span class="">Carpenter</span>
+</button>
+<button class="trade-chip p-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-medium flex flex-col items-center justify-center gap-1 hover:bg-emerald-50 transition-all" data-trade="AC Service" onclick="selectTrade('AC Service')" type="button">
+<span class="material-symbols-outlined text-[20px]">mode_fan</span>
+<span class="">AC Service</span>
+</button>
+<button class="trade-chip p-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-medium flex flex-col items-center justify-center gap-1 hover:bg-emerald-50 transition-all" data-trade="Painter" onclick="selectTrade('Painter')" type="button">
+<span class="material-symbols-outlined text-[20px]">format_paint</span>
+<span class="">Painter</span>
+</button>
+</div>
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface mb-1 block" for="postDesc">Describe the Issue</label>
+<textarea class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="postDesc" placeholder="E.g., Inverter load tripping when AC is switched on..." required="" rows="2"></textarea>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div>
+<label class="text-xs font-bold text-on-surface mb-1 block">Preferred Arrival Slot</label>
+<input class="w-full text-xs p-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="postSlot" type="text" value="Tomorrow, 10:30 AM">
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface mb-1 block">Est. Budget (₹)</label>
+<input class="w-full text-xs p-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="postBudget" placeholder="e.g. 400" type="number">
+</div>
+</div>
+<div class="pt-2 flex items-center justify-between">
+<span class="text-[11px] text-slate-500 flex items-center gap-1">
+<span class="material-symbols-outlined text-primary text-[14px]">lock</span> Zero platform commission
+                </span>
+<button class="px-5 py-2.5 rounded-full bg-primary hover:bg-emerald-800 text-white font-semibold text-xs shadow-sm flex items-center gap-1.5 transition-all" type="submit">
+<span class="material-symbols-outlined text-[16px]">send</span>
+<span class="">Post Request to Verified Workers</span>
+</button>
+</div>
+</form>
+</div>
+<!-- Right: Ongoing Requests -->
+<div class="lg:col-span-5 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<h3 class="text-base font-heading font-bold text-on-surface">Ongoing Requests (<span class="" id="ongoingCount">3</span>)</h3>
+<button class="text-xs text-primary font-semibold hover:underline" onclick="navigate('resident-request-detail')">View All &amp; Quotes</button>
+</div>
+<div class="flex flex-col gap-3" id="ongoingCardContainer"><!-- Card 0 -->
+<div class="ongoing-select-card cursor-pointer group rounded-xl bg-white p-4 shadow-sm border-2 border-primary hover:border-primary transition-all flex flex-col gap-2" onclick="document.getElementById('featTitle').textContent='Electrician Visit with Ramesh Kumar'; document.getElementById('featCardSlot').textContent='Tomorrow, 10:30 AM'; document.getElementById('featTradeBadge').textContent='Electrical'; document.getElementById('featDetails').textContent='Visiting Fee: ₹299 (Standard Inspection) • ID &amp; Police Verified • 4.9 ★ (184 reviews)'; document.getElementById('featProAvatar').src='https://lh3.googleusercontent.com/aida-public/AB6AXuCd4GDujCygHjoezWcnRPmktGucjIYYEjYXFJyvHLhfpc1UgqxRdcGaT-PniCmyl1j-yDxWW4mHnIjvlSv5cDKp9BjlCdFWT00NykaTrxr7OqZ2TCIIWJpOEfGjQvEU1-flyu2wcvgZpEqyFuyGatSNym9BOvWeWCyEhwePqjbAoL-FOtlghYJccaeVyR_kCTBhqBks45cJg2TJbN_iWMPryMnqxHE5pQOC0XBbPg'; document.querySelectorAll('.ongoing-select-card').forEach(c=&gt;c.classList.remove('border-2','border-primary')); this.classList.add('border-2','border-primary'); showToast('Showing Electrician Visit with Ramesh Kumar');">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-primary uppercase">Electrical</span>
+<h4 class="text-sm font-bold text-on-surface group-hover:text-primary mt-1">Main MCB Tripping &amp; Inverter Setup</h4>
+<p class="text-xs text-slate-500">Krishna Residency • 3 artisan quotes waiting</p>
+</div>
+<span class="text-xs font-bold text-primary">₹350 - ₹500</span>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-slate-100">
+<span class="text-[11px] text-rose-600 font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span> Awaiting your selection
+                  </span>
+<button class="px-3 py-1 rounded-full bg-primary text-white text-xs font-semibold group-hover:bg-emerald-700 transition-colors" onclick="event.stopPropagation(); navigate('resident-request-detail');">
+                    Review Offers →
+                  </button>
+</div>
+</div>
+<!-- Card 1 -->
+<div class="ongoing-select-card cursor-pointer group rounded-xl bg-white p-4 shadow-sm border border-slate-100 hover:border-primary transition-all flex flex-col gap-2" onclick="document.getElementById('featTitle').textContent='Plumbing &amp; RO Visit with Satyanarayana P.'; document.getElementById('featCardSlot').textContent='Today, 4:00 PM'; document.getElementById('featTradeBadge').textContent='Plumbing'; document.getElementById('featDetails').textContent='Visiting Fee: ₹249 • Kitchen Tap &amp; RO Overhaul • 4.8 ★ (92 reviews)'; document.getElementById('featProAvatar').src='https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300&amp;q=80'; document.querySelectorAll('.ongoing-select-card').forEach(c=&gt;c.classList.remove('border-2','border-primary')); this.classList.add('border-2','border-primary'); showToast('Showing Kitchen Tap Leakage &amp; RO Visit');">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">Plumbing</span>
+<h4 class="text-sm font-bold text-on-surface group-hover:text-primary mt-1">Kitchen Sink Tap Leakage &amp; RO</h4>
+<p class="text-xs text-slate-500">Satyanarayana P. • Arriving today at 4 PM</p>
+</div>
+<span class="px-2 py-0.5 rounded bg-secondary-container text-primary text-[10px] font-bold">Assigned</span>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+<span class="text-slate-500">Gate OTP: <strong class="text-on-surface">3829</strong></span>
+<button class="text-primary font-semibold hover:underline" onclick="event.stopPropagation(); showToast('Satyanarayana P. is 1.2 km away. Call: +91 9988776655');">Track Worker</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="ongoing-select-card cursor-pointer group rounded-xl bg-white p-4 shadow-sm border border-slate-100 hover:border-primary transition-all flex flex-col gap-2" onclick="document.getElementById('featTitle').textContent='Carpentry Inspection with Ariave Godfrey'; document.getElementById('featCardSlot').textContent='Friday, 11:00 AM'; document.getElementById('featTradeBadge').textContent='Carpentry'; document.getElementById('featDetails').textContent='Estimated Quote: ₹350 - ₹450 • Door Alignment &amp; Locks • 4.9 ★ (120 reviews)'; document.getElementById('featProAvatar').src='https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=300&amp;q=80'; document.querySelectorAll('.ongoing-select-card').forEach(c=&gt;c.classList.remove('border-2','border-primary')); this.classList.add('border-2','border-primary'); showToast('Showing Wooden Door Alignment &amp; Lock Visit');">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 uppercase">Carpentry</span>
+<h4 class="text-sm font-bold text-on-surface group-hover:text-primary mt-1">Wooden Door Alignment &amp; Lock Repair</h4>
+<p class="text-xs text-slate-500">Ariave Godfrey • Scheduled for Friday 11 AM</p>
+</div>
+<span class="text-xs font-bold text-primary">₹350 - ₹450</span>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+<span class="text-slate-500">Ward 14 • Pre-cleared</span>
+<button class="text-primary font-semibold hover:underline" onclick="event.stopPropagation(); showToast('Ariave Godfrey confirmed for Friday 11 AM. Phone: +91 98234 56711');">View Details</button>
+</div>
+</div></div>
+</div>
+</div>
+<!-- Directory Category Chips -->
+<div class="flex flex-col gap-2 pt-2">
+<h3 class="text-base font-heading font-bold text-on-surface">Danavaipeta Artisan Directory</h3>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+<div class="cursor-pointer p-3 rounded-xl bg-white border border-slate-100 hover:border-primary shadow-sm hover:shadow transition-all flex items-center gap-3" onclick="prefillTrade('Electrician', 'Switchboard spark / breaker test')">
+<div class="w-10 h-10 rounded-lg bg-emerald-50 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<div>
+<span class="text-xs font-bold block text-on-surface">Electricians</span>
+<span class="text-[11px] text-slate-500">14 Active in Ward 14</span>
+</div>
+</div>
+<div class="cursor-pointer p-3 rounded-xl bg-white border border-slate-100 hover:border-primary shadow-sm hover:shadow transition-all flex items-center gap-3" onclick="prefillTrade('Plumber', 'Bathroom tap valve leaking')">
+<div class="w-10 h-10 rounded-lg bg-emerald-50 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">plumbing</span>
+</div>
+<div>
+<span class="text-xs font-bold block text-on-surface">Plumbers</span>
+<span class="text-[11px] text-slate-500">9 Active in Ward 14</span>
+</div>
+</div>
+<div class="cursor-pointer p-3 rounded-xl bg-white border border-slate-100 hover:border-primary shadow-sm hover:shadow transition-all flex items-center gap-3" onclick="prefillTrade('Carpenter', 'Door hinge alignment / lock repair')">
+<div class="w-10 h-10 rounded-lg bg-emerald-50 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">carpenter</span>
+</div>
+<div>
+<span class="text-xs font-bold block text-on-surface">Carpenters</span>
+<span class="text-[11px] text-slate-500">7 Active in Ward 14</span>
+</div>
+</div>
+<div class="cursor-pointer p-3 rounded-xl bg-white border border-slate-100 hover:border-primary shadow-sm hover:shadow transition-all flex items-center gap-3" onclick="prefillTrade('AC Service', 'Split AC filter jet wash &amp; gas top-up')">
+<div class="w-10 h-10 rounded-lg bg-emerald-50 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">mode_fan</span>
+</div>
+<div>
+<span class="text-xs font-bold block text-on-surface">AC Technicians</span>
+<span class="text-[11px] text-slate-500">11 Active in Ward 14</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3 pt-2"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><h3 class="text-base font-heading font-bold text-on-surface">Nearby Verified Workers in Danavaipeta</h3><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-primary text-[11px] font-bold">6 Pros Available</span></div><span class="text-xs text-slate-500 hidden sm:inline">Ward 14 • Police &amp; Aadhaar Verified</span></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><div class="p-4 rounded-xl bg-white border-2 border-primary/20 hover:border-primary shadow-sm hover:shadow transition-all flex flex-col justify-between gap-3 relative"><span class="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold uppercase tracking-wider">Featured</span><div class="flex items-start gap-3"><div class="w-12 h-12 rounded-full bg-emerald-100 text-primary flex items-center justify-center font-bold text-base shrink-0 border border-primary">RK</div><div><div class="flex items-center gap-1.5"><h4 class="text-sm font-bold text-on-surface">Ramesh Kumar</h4><span class="material-symbols-outlined text-primary text-[16px]">verified</span></div><span class="text-xs text-primary font-semibold block">Electrician • Master Tech</span><div class="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5"><span class="material-symbols-outlined text-emerald-700 text-[13px]">star</span><strong class="text-slate-700">4.9</strong> (184 reviews) • Danavaipeta</div></div></div><div class="p-2.5 rounded-lg bg-slate-50 text-xs flex items-center justify-between"><span class="text-slate-600 font-medium">Fee: <strong class="text-primary font-bold">₹299</strong> inspection</span><span class="text-slate-600">Ph: <strong class="text-on-surface">+91 98345 67812</strong></span></div><div class="flex items-center gap-2 pt-1 border-t border-slate-100"><button class="flex-1 py-1.5 px-3 rounded-full bg-emerald-50 hover:bg-emerald-100 text-primary text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Calling Ramesh Kumar (+91 98345 67812)...')"><span class="material-symbols-outlined text-[15px]">call</span> Call</button><button class="flex-1 py-1.5 px-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Opening WhatsApp chat with Ramesh Kumar (+91 98345 67812)...')"><span class="material-symbols-outlined text-[15px]">chat</span> WhatsApp</button></div></div><div class="p-4 rounded-xl bg-white border border-slate-200 hover:border-primary shadow-sm hover:shadow transition-all flex flex-col justify-between gap-3"><div class="flex items-start gap-3"><div class="w-12 h-12 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-base shrink-0">SG</div><div><div class="flex items-center gap-1.5"><h4 class="text-sm font-bold text-on-surface">Suresh Gowda</h4><span class="material-symbols-outlined text-primary text-[16px]">verified</span></div><span class="text-xs text-slate-600 font-semibold block">Plumber • Sanitary &amp; Leaks</span><div class="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5"><span class="material-symbols-outlined text-emerald-700 text-[13px]">star</span><strong class="text-slate-700">4.8</strong> (96 reviews) • Danavaipeta Main Rd</div></div></div><div class="p-2.5 rounded-lg bg-slate-50 text-xs flex items-center justify-between"><span class="text-slate-600 font-medium">Fee: <strong class="text-primary font-bold">₹249</strong> visit</span><span class="text-slate-600">Ph: <strong class="text-on-surface">+91 98450 12891</strong></span></div><div class="flex items-center gap-2 pt-1 border-t border-slate-100"><button class="flex-1 py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Calling Suresh Gowda (+91 98450 12891)...')"><span class="material-symbols-outlined text-[15px]">call</span> Call</button><button class="flex-1 py-1.5 px-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Opening WhatsApp chat with Suresh Gowda (+91 98450 12891)...')"><span class="material-symbols-outlined text-[15px]">chat</span> WhatsApp</button></div></div><div class="p-4 rounded-xl bg-white border border-slate-200 hover:border-primary shadow-sm hover:shadow transition-all flex flex-col justify-between gap-3"><div class="flex items-start gap-3"><div class="w-12 h-12 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center font-bold text-base shrink-0">AG</div><div><div class="flex items-center gap-1.5"><h4 class="text-sm font-bold text-on-surface">Ariave Godfrey</h4><span class="material-symbols-outlined text-primary text-[16px]">verified</span></div><span class="text-xs text-slate-600 font-semibold block">Carpenter • Furniture &amp; Woodwork</span><div class="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5"><span class="material-symbols-outlined text-emerald-700 text-[13px]">star</span><strong class="text-slate-700">4.9</strong> (142 reviews) • Prakash Nagar</div></div></div><div class="p-2.5 rounded-lg bg-slate-50 text-xs flex items-center justify-between"><span class="text-slate-600 font-medium">Fee: <strong class="text-primary font-bold">₹450</strong> / visit</span><span class="text-slate-600">Ph: <strong class="text-on-surface">+91 98234 56711</strong></span></div><div class="flex items-center gap-2 pt-1 border-t border-slate-100"><button class="flex-1 py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Calling Ariave Godfrey (+91 98234 56711)...')"><span class="material-symbols-outlined text-[15px]">call</span> Call</button><button class="flex-1 py-1.5 px-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Opening WhatsApp chat with Ariave Godfrey (+91 98234 56711)...')"><span class="material-symbols-outlined text-[15px]">chat</span> WhatsApp</button></div></div><div class="p-4 rounded-xl bg-white border border-slate-200 hover:border-primary shadow-sm hover:shadow transition-all flex flex-col justify-between gap-3"><div class="flex items-start gap-3"><div class="w-12 h-12 rounded-full bg-secondary-container text-primary flex items-center justify-center font-bold text-base shrink-0">SD</div><div><div class="flex items-center gap-1.5"><h4 class="text-sm font-bold text-on-surface">Sunita Devi</h4><span class="material-symbols-outlined text-primary text-[16px]">verified</span></div><span class="text-xs text-slate-600 font-semibold block">Deep Cleaning &amp; Domestic Help</span><div class="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5"><span class="material-symbols-outlined text-emerald-700 text-[13px]">star</span><strong class="text-slate-700">4.8</strong> (79 reviews) • Kotipalli</div></div></div><div class="p-2.5 rounded-lg bg-slate-50 text-xs flex items-center justify-between"><span class="text-slate-600 font-medium">Fee: <strong class="text-primary font-bold">₹350</strong> / session</span><span class="text-slate-600">Ph: <strong class="text-on-surface">+91 98456 78913</strong></span></div><div class="flex items-center gap-2 pt-1 border-t border-slate-100"><button class="flex-1 py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Calling Sunita Devi (+91 98456 78913)...')"><span class="material-symbols-outlined text-[15px]">call</span> Call</button><button class="flex-1 py-1.5 px-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Opening WhatsApp chat with Sunita Devi (+91 98456 78913)...')"><span class="material-symbols-outlined text-[15px]">chat</span> WhatsApp</button></div></div><div class="p-4 rounded-xl bg-white border border-slate-200 hover:border-primary shadow-sm hover:shadow transition-all flex flex-col justify-between gap-3"><div class="flex items-start gap-3"><div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-base shrink-0">BS</div><div><div class="flex items-center gap-1.5"><h4 class="text-sm font-bold text-on-surface">Baljit Singh</h4><span class="material-symbols-outlined text-primary text-[16px]">verified</span></div><span class="text-xs text-slate-600 font-semibold block">AC Technician &amp; Appliances</span><div class="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5"><span class="material-symbols-outlined text-emerald-700 text-[13px]">star</span><strong class="text-slate-700">4.7</strong> (118 reviews) • Aryapuram</div></div></div><div class="p-2.5 rounded-lg bg-slate-50 text-xs flex items-center justify-between"><span class="text-slate-600 font-medium">Fee: <strong class="text-primary font-bold">₹499</strong> visit</span><span class="text-slate-600">Ph: <strong class="text-on-surface">+91 98789 01216</strong></span></div><div class="flex items-center gap-2 pt-1 border-t border-slate-100"><button class="flex-1 py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Calling Baljit Singh (+91 98789 01216)...')"><span class="material-symbols-outlined text-[15px]">call</span> Call</button><button class="flex-1 py-1.5 px-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Opening WhatsApp chat with Baljit Singh (+91 98789 01216)...')"><span class="material-symbols-outlined text-[15px]">chat</span> WhatsApp</button></div></div><div class="p-4 rounded-xl bg-white border border-slate-200 hover:border-primary shadow-sm hover:shadow transition-all flex flex-col justify-between gap-3"><div class="flex items-start gap-3"><div class="w-12 h-12 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center font-bold text-base shrink-0">VR</div><div><div class="flex items-center gap-1.5"><h4 class="text-sm font-bold text-on-surface">Vikram Rao</h4><span class="material-symbols-outlined text-primary text-[16px]">verified</span></div><span class="text-xs text-slate-600 font-semibold block">Electrician &amp; Inverters</span><div class="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5"><span class="material-symbols-outlined text-emerald-700 text-[13px]">star</span><strong class="text-slate-700">4.7</strong> (88 reviews) • Danavaipeta Ward 14</div></div></div><div class="p-2.5 rounded-lg bg-slate-50 text-xs flex items-center justify-between"><span class="text-slate-600 font-medium">Fee: <strong class="text-primary font-bold">₹350</strong> visit</span><span class="text-slate-600">Ph: <strong class="text-on-surface">+91 98901 23418</strong></span></div><div class="flex items-center gap-2 pt-1 border-t border-slate-100"><button class="flex-1 py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Calling Vikram Rao (+91 98901 23418)...')"><span class="material-symbols-outlined text-[15px]">call</span> Call</button><button class="flex-1 py-1.5 px-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors" onclick="showToast('Opening WhatsApp chat with Vikram Rao (+91 98901 23418)...')"><span class="material-symbols-outlined text-[15px]">chat</span> WhatsApp</button></div></div></div></div></section>
+<!-- PAGE: RESIDENT REQUEST DETAIL & OFFERS -->
+<section class="page-view flex flex-col gap-6 hidden" id="view-resident-request-detail">
+<!-- Breadcrumb / Back button -->
+<div class="flex items-center justify-between">
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-on-surface hover:bg-slate-50 transition-colors" onclick="navigate('resident-home')">
+<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+<span class="">Back to Resident Home</span>
+</button>
+<span class="px-3 py-1 rounded-full bg-secondary-container text-primary text-xs font-bold" id="detailStatusBadge">Status: 3 Offers Received</span>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Request Specs -->
+<div class="lg:col-span-7 bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col gap-4">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-[11px] font-bold text-primary uppercase tracking-wider">Electrical Service</span>
+<h2 class="text-xl font-heading font-bold text-on-surface mt-0.5">Main MCB Tripping &amp; Inverter Setup</h2>
+<p class="text-xs text-slate-500">Posted Today, 08:30 AM • Krishna Residency, Flat #402, Danavaipeta</p>
+</div>
+<span class="px-3 py-1 rounded-lg bg-slate-100 text-xs font-bold text-on-surface">Budget: ₹300 - ₹500</span>
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50 text-xs text-slate-700 leading-relaxed">
+<strong class="text-on-surface block mb-1">Issue Description by Ananya:</strong>
+              "Whenever master bedroom AC and kitchen geyser run together, the 32A MCB in the main DB box trips immediately. Inverter is beeping overload warning. Need an electrician with diagnostic clamp multimeter to check neutral load distribution."
+            </div>
+<div>
+<span class="text-xs font-bold text-on-surface block mb-2">Attached Problem Photos</span>
+<div class="grid grid-cols-2 gap-3">
+<div class="rounded-lg overflow-hidden border border-slate-200">
+<img alt="MCB Box" class="w-full h-32 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBItyBlReBGW6Czawv2VppPtu4uHjvgLs2Y8LlODj6gSAH6jcMfMd98lpncZ8rpGDAhTkd2J8v1WFOIqxeuPYPsBhsN0w_57zpJxgkVUy-zRseRA3BrFTKiYfAikGf1P_xSkMTnSjObvgiMQPyZP3rC5PAFEGp9hf4mD9yAG8mJOr_i0Yx4Lcm3cc-V9TdqKjzj1Ez2wUn3ViT1nVNEkwGOD9Rf7BYiRsRyz55iVg">
+<span class="p-1.5 text-[10px] text-slate-500 bg-white block">Photo 1: Main MCB Box &amp; Inverter Wire</span>
+</div>
+<div class="rounded-lg overflow-hidden border border-slate-200">
+<img alt="Inverter LED" class="w-full h-32 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuM4qtnop0UdY8hz7053y0tKChjC2NljG0Za9cPdUmHz_zwIhFtzHAi2zq-pTbTgBkGQuNepvLhFQzZ0ZLl5-96bxOLmYWbXwu1_gl7ZuqPT-v6nVZynU9zD8mdHNGEUvXZVpNujqvb4PzdLHc_JU2yPTvcQwZ2yNAPYJldrV2Xu4DhoR5ENIQtvadbetRMUvOEWgzoFOkfMvPUYtdwbA8q0RfFMVlQ9rT3WlxDQ">
+<span class="p-1.5 text-[10px] text-slate-500 bg-white block">Photo 2: Luminous Inverter Panel</span>
+</div>
+</div>
+</div>
+<div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+<span class="text-slate-500">Requested Window: <strong class="text-on-surface">Tomorrow, 10:30 AM</strong></span>
+<span class="text-primary font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">verified</span> Pre-cleared at Gate Security
+              </span>
+</div>
+</div>
+<!-- Received Quotes List -->
+<div class="lg:col-span-5 flex flex-col gap-3">
+<h3 class="text-base font-heading font-bold text-on-surface">Available Service Offers (3)</h3>
+<!-- Quote 1: Ramesh Kumar -->
+<div class="rounded-xl bg-white p-4 shadow-sm border-2 border-primary relative flex flex-col gap-2.5" id="offer-card-ramesh">
+<span class="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold uppercase tracking-wider">Top Rated Pro</span>
+<div class="flex items-start gap-3 mt-1">
+<img alt="Ramesh Kumar" class="w-12 h-12 rounded-full object-cover border-2 border-primary" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArhyIqjGPNf_UmvKblKh-DJvu0LT60_ExexHtWoH1UKCMgRvuKKckSPiEEn5T4gwvg4FLHdGqGkRDt58NdLyJFKJq0admgAiohI-4N3s9N2lb0Ar1CVnfi_v0Qv9_eZ5UlnXDFZ7HDmrIT2RtqoUxeM7v-VqLrmOlcHpt6Pd28CTswSZFqyGr_dqCP7r-DxzOYAgwYBbH1C9F7k3ILZ3mWjy5Xs8-E5jxkwXncQA">
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<h4 class="text-sm font-bold text-on-surface">Ramesh Kumar</h4>
+<span class="text-base font-bold text-primary">₹299</span>
+</div>
+<span class="text-[11px] text-slate-500 block">Master Electrician • 12 yrs exp</span>
+<div class="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+<span class="material-symbols-outlined text-[13px]">star</span> 4.9 (112 reviews) • 0.6 km away
+                  </div>
+</div>
+</div>
+<p class="text-xs text-slate-600 bg-slate-50 p-2 rounded leading-snug">
+                "I am at Danavaipeta junction with 32A MCB spares and digital clamp meter. Can diagnose &amp; fix immediately."
+              </p>
+<div class="flex items-center justify-between pt-1 border-t border-slate-100">
+<button class="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-on-surface flex items-center gap-1" onclick="openResidentTab('messages')">
+<span class="material-symbols-outlined text-[14px]">chat</span> Chat
+                </button>
+<button class="px-4 py-1.5 rounded-full bg-primary hover:bg-emerald-800 text-white text-xs font-semibold shadow-sm flex items-center gap-1" id="btnAcceptRamesh" onclick="acceptOffer('Ramesh Kumar', '₹299')">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+<span class="">Accept Offer (₹299)</span>
+</button>
+</div>
+</div>
+<!-- Quote 2: Vikram Rao -->
+<div class="rounded-xl bg-white p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
+<div class="flex items-start justify-between">
+<div>
+<h4 class="text-sm font-bold text-on-surface">Vikram Rao</h4>
+<span class="text-[11px] text-slate-500">Electrician • 6 yrs exp • 4.7 ★</span>
+</div>
+<span class="text-sm font-bold text-primary">₹350</span>
+</div>
+<p class="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                "Available at 4:30 PM with digital multi-meter and wire continuity tester."
+              </p>
+<div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+<button class="px-3 py-1 rounded-full bg-slate-100 hover:bg-primary hover:text-white text-xs font-semibold transition-colors" onclick="acceptOffer('Vikram Rao', '₹350')">
+                  Accept ₹350
+                </button>
+</div>
+</div>
+<!-- Quote 3: Suresh Electricals -->
+<div class="rounded-xl bg-white p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
+<div class="flex items-start justify-between">
+<div>
+<h4 class="text-sm font-bold text-on-surface">Suresh Electricals</h4>
+<span class="text-[11px] text-slate-500">Registered Shop • Danavaipeta Main Rd • 4.8 ★</span>
+</div>
+<span class="text-sm font-bold text-primary">₹400</span>
+</div>
+<div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+<button class="px-3 py-1 rounded-full bg-slate-100 hover:bg-primary hover:text-white text-xs font-semibold transition-colors" onclick="acceptOffer('Suresh Electricals', '₹400')">
+                  Accept ₹400
+                </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- PAGE: RESIDENT MESSAGES / CHAT -->
+<section class="page-view flex flex-col gap-4 max-w-3xl mx-auto hidden" id="view-resident-messages">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-heading font-bold text-on-surface">Direct Chat with Artisan</h2>
+<button class="text-xs font-semibold text-primary underline" onclick="navigate('resident-home')">Back to Dashboard</button>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[460px]">
+<!-- Chat header -->
+<div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<img alt="Ramesh" class="w-10 h-10 rounded-full object-cover border border-primary" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-v-zoab-FAN29Xdob4-RrcYEsFGDAIXhMQMCmedogDC4xXJEuKvwkjZ8kUmA4pcX8uvUZ3D_KqGCcxvH_6KHYor5JMuys2oWHNI-dEmdXxM_gBStq-wKZsHFzwFbQm6EZFR11iaCzgSMdyoXRdLPKZQHz75iHj17HNbLPChDvZkjZ5DmKaFX-pnRmghC2tq12-m92g8h2aFcbJDIAa1ax8bVqrVzt4z13kAAJ8g">
+<div>
+<h4 class="text-xs font-bold text-on-surface">Ramesh Kumar (Master Electrician)</h4>
+<span class="text-[11px] text-emerald-600 font-medium">● Online in Danavaipeta</span>
+</div>
+</div>
+<button class="p-2 rounded-full bg-white border border-slate-200 text-primary hover:bg-emerald-50" onclick="showToast('Calling Ramesh Kumar (+91 98765 43210)...')">
+<span class="material-symbols-outlined text-[18px]">call</span>
+</button>
+</div>
+<!-- Chat Log -->
+<div class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/50" id="chatBox">
+<div class="flex items-start gap-2 max-w-[80%]">
+<div class="w-6 h-6 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center shrink-0">RK</div>
+<div class="bg-white p-2.5 rounded-xl text-xs text-slate-800 shadow-sm border border-slate-100">
+                Namaskaram Ananya garu! I reviewed your MCB trip photo. I carry spare 32A Schneider breakers and a clamp meter. Can I arrive tomorrow at 10:30 AM?
+              </div>
+</div>
+<div class="flex items-start gap-2 max-w-[80%] ml-auto justify-end">
+<div class="bg-primary text-white p-2.5 rounded-xl text-xs shadow-sm">
+                Yes please Ramesh garu. Our gate security is pre-cleared for flat #402.
+              </div>
+</div>
+</div>
+<!-- Chat input -->
+<form class="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2" onsubmit="sendChatMessage(event)">
+<input class="flex-1 text-xs px-3 py-2 rounded-full border border-slate-200 outline-none focus:border-primary" id="chatInput" placeholder="Type a message to Ramesh Kumar..." type="text">
+<button class="p-2 rounded-full bg-primary text-white hover:bg-emerald-800 flex items-center justify-center" type="submit">
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</form>
+</div>
+</section>
+<!-- PAGE: RESIDENT PAYMENTS -->
+<section class="page-view flex flex-col gap-4 max-w-3xl mx-auto hidden" id="view-resident-payments">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-heading font-bold text-on-surface">Service Payments &amp; Receipts</h2>
+<button class="text-xs font-semibold text-primary underline" onclick="navigate('resident-home')">Back to Dashboard</button>
+</div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-100 divide-y divide-slate-100">
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-emerald-100 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">receipt</span>
+</div>
+<div>
+<h4 class="text-xs font-bold text-on-surface">M. Ravi - Wooden Door Alignment</h4>
+<span class="text-[11px] text-slate-500">Paid via UPI • 14 Days Warranty Active</span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-sm font-bold text-on-surface">₹450.00</span>
+<span class="text-[10px] text-emerald-600 font-semibold block">Completed</span>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">receipt</span>
+</div>
+<div>
+<h4 class="text-xs font-bold text-on-surface">Danavaipeta Society RO Filter Service</h4>
+<span class="text-[11px] text-slate-500">Paid via NetBanking</span>
+</div>
+</div>
+<div class="text-right">
+<span class="text-sm font-bold text-on-surface">₹850.00</span>
+<span class="text-[10px] text-slate-400 font-semibold block">Completed</span>
+</div>
+</div>
+</div>
+</section>
+<!-- PAGE: RESIDENT PROFILE -->
+<section class="page-view flex flex-col gap-4 max-w-2xl mx-auto hidden" id="view-resident-profile">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-heading font-bold text-on-surface">Resident Profile &amp; Security</h2>
+<button class="text-xs font-semibold text-primary underline" onclick="navigate('resident-home')">Back to Dashboard</button>
+</div>
+<div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col gap-4">
+<div class="flex items-center gap-4">
+<div class="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold" id="profileCardInitials">AS</div>
+<div>
+<h3 class="text-base font-bold text-on-surface" id="profileCardName">Ananya Sharma</h3>
+<span class="text-xs text-primary font-semibold">Verified Resident Pass #DNVP-RS-402</span>
+<span class="text-xs text-slate-500 block" id="profileCardPhone">Phone: +91 94401 23456</span>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100 text-xs">
+<div class="p-3 bg-slate-50 rounded-lg">
+<span class="text-slate-500 block font-medium">Flat Address</span>
+<strong class="text-on-surface block mt-0.5" id="profileCardAddress">Flat #402, Krishna Residency</strong>
+<span class="text-slate-500" id="profileCardSubAddress">Main Road, Danavaipeta, Rajahmundry</span>
+</div>
+<div class="p-3 bg-slate-50 rounded-lg">
+<span class="text-slate-500 block font-medium">Gate Security Code</span>
+<strong class="text-on-surface block mt-0.5">Intercom #0402</strong>
+<span class="text-emerald-700">Pre-approved visitor clearance</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- 2. WORKER PORTAL SHELL & PAGES                          -->
+<!-- ======================================================== -->
+<div class="min-h-screen pt-9" id="worker-shell">
+<!-- Worker Header -->
+<header class="fixed top-9 left-0 right-0 h-16 bg-white/95 backdrop-blur-md shadow-sm z-50 flex items-center justify-between px-6 border-b border-surface-container">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2.5 text-left group" onclick="navigate('worker-feed')">
+<div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[20px]">bolt</span>
+</div>
+<div class="flex flex-col">
+<span class="font-heading font-bold text-lg text-primary leading-tight">Local Pro</span>
+<span class="text-xs text-on-surface-variant leading-none" id="workerHeaderSub">Worker Portal (<span id="workerHeaderName" class="">Ramesh Kumar</span>)</span>
+</div>
+</button>
+<div class="h-6 w-px bg-slate-200"></div>
+<!-- Duty Toggle -->
+<button class="flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container text-primary text-xs font-semibold shadow-sm transition-all" id="btnDuty" onclick="toggleDuty()">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container animate-pulse" id="dutyDot"></span>
+<span class="" id="dutyText">Accepting Calls (On Duty)</span>
+</button>
+</div>
+<div class="flex items-center gap-3">
+<div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs font-semibold text-primary">
+<span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+<span class="">Today: ₹1,150</span>
+</div>
+<div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+<img alt="Worker Avatar" class="w-9 h-9 rounded-full object-cover border-2 border-primary" id="workerTopAvatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBoUfvacZEkTUtUyD2zJy6Ycfelqps3lechpy_gU4_izSUd3J1bW8FrzXdI7hinydEnO1DPzp0JerQ6D1w_lu4rGp-4vQnnhKi_bR7orvbqsfyQctFyt9AZ_lcgQy7OQEQ2BHysL9GYZOT_Q8GXRao_4Sf-leqFY3rpAMENpT6QZnAFlB-pYh_LfdVE1-iXks7MQYUF5Os17aZwWJMzYmBDe9GLS3cKzWANXUmQ5g">
+<div class="hidden sm:flex flex-col text-left">
+<span class="text-xs font-semibold text-on-surface leading-tight" id="workerTopName">Ramesh Kumar</span>
+<span class="text-[11px] text-slate-500 leading-tight" id="workerTopRole">Electrician Pro</span>
+</div>
+<button class="ml-2 flex items-center gap-1 px-3 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors" onclick="signOutToAuth()" title="Sign out to Role Selection">
+<span class="material-symbols-outlined text-[16px]">logout</span>
+<span class="hidden md:inline">Sign Out</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Worker Sidebar -->
+<aside class="fixed left-0 bottom-0 w-60 bg-white shadow-sm z-40 flex flex-col justify-between py-6 px-4 border-r border-surface-container top-16">
+<div class="flex flex-col gap-1.5">
+<span class="px-2 text-[11px] font-bold text-slate-400 tracking-wider uppercase mb-1">Artisan Menu</span>
+<button class="flex items-center justify-between px-3.5 py-2.5 rounded-full text-sm font-semibold active-nav transition-colors" id="worker-nav-feed" onclick="navigate('worker-feed')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px]">explore</span>
+<span class="">Job Feed</span>
+</div>
+<span class="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-xs font-bold">4 New</span>
+</button>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors" id="worker-nav-myjobs" onclick="navigate('worker-detail')">
+<span class="material-symbols-outlined text-[20px]">assignment</span>
+<span class="">My Jobs</span>
+</button>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors" onclick="openMessagesInboxModal('ananya')">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+<span class="">Messages</span>
+</button>
+<button class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors justify-between" onclick="showToast('Earnings: ₹6,450 paid directly to UPI this week.')"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[20px]">payments</span><span class="">Earnings</span></div><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-primary text-xs font-bold">₹1,150 Today</span></button>
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+<div class="flex items-center gap-1.5 text-primary font-bold mb-0.5">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span class="">Verified Kaarigar</span>
+</div>
+<p class="text-slate-500" id="workerBadgeCode">ID: RMC-ELE-498 • Rajahmundry Police Verified</p>
+</div>
+</aside>
+<!-- Worker Main Content -->
+<div class="pl-60">
+<main class="pt-16 p-6 min-h-[calc(100vh-2.25rem)]">
+<!-- PAGE: WORKER JOB FEED -->
+<section class="page-view flex flex-col gap-5 max-w-4xl" id="view-worker-feed">
+<div class="flex items-center justify-between">
+<div>
+<h1 class="text-xl font-heading font-bold text-on-surface">Available Jobs in Danavaipeta</h1>
+<p class="text-xs text-slate-500">Live verified customer repair requests within 2.5 km</p>
+</div>
+<button class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-primary hover:bg-emerald-50" onclick="showToast('Feed refreshed! 4 requests active in Danavaipeta.')">
+<span class="material-symbols-outlined text-[16px]">refresh</span> Refresh Feed
+          </button>
+</div>
+<!-- Job Card 1 (Ananya's Job - Clickable to Detail) -->
+<div class="cursor-pointer group rounded-xl bg-white p-5 shadow-sm border-2 border-primary-container hover:shadow-md transition-all flex flex-col gap-3" onclick="navigate('worker-detail')">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold uppercase animate-pulse">Emergency Request</span>
+<span class="text-xs text-slate-500">0.8 km away • Posted 2 hrs ago</span>
+</div>
+<span class="text-base font-extrabold text-primary">₹300 - ₹500</span>
+</div>
+<div>
+<h3 class="text-base font-bold text-on-surface group-hover:text-primary transition-colors">Electrical Repair (Emergency MCB Trip &amp; Inverter Setup)</h3>
+<p class="text-xs text-slate-500 mt-0.5">Customer: <strong class="text-on-surface">Ananya Sharma</strong> (4.9 ★ verified resident) • Krishna Residency</p>
+<p class="text-xs text-slate-700 bg-slate-50 p-3 rounded-lg mt-2 leading-relaxed">
+              "Main MCB trips every 10 minutes when AC turns on. Need urgent inverter &amp; wiring inspection with clamp multimeter."
+            </p>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
+<div class="flex items-center gap-3 text-xs text-slate-500">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-primary">schedule</span> Tomorrow, 10:30 AM</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-primary">photo_camera</span> 2 Photos Attached</span>
+</div>
+<button class="px-4 py-2 rounded-full bg-primary hover:bg-emerald-800 text-white font-semibold text-xs flex items-center gap-1 shadow-sm">
+<span class="">View Job &amp; Customer Details</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Job Card 2 -->
+<div class="rounded-xl bg-white p-4 shadow-sm border border-slate-100 flex flex-col gap-2">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">Ceiling Fan</span>
+<h4 class="text-sm font-bold text-on-surface mt-1">Ceiling Fan &amp; Concealed LED Wiring</h4>
+<p class="text-xs text-slate-500">K. Venkatesh • Prakash Nagar (1.4 km) • Preferred: Today</p>
+</div>
+<span class="text-sm font-bold text-primary">₹350 Fixed</span>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-slate-100">
+<span class="text-[11px] text-slate-500">Ladder provided by resident</span>
+<button class="px-3 py-1 rounded-full bg-slate-100 hover:bg-primary hover:text-white text-xs font-semibold transition-colors" onclick="showToast('Submitted instant quote of ₹350 to K. Venkatesh!')">
+              Send Quick Quote (₹350)
+            </button>
+</div>
+</div>
+</section>
+<!-- PAGE: WORKER JOB DETAIL -->
+<section class="page-view flex flex-col gap-5 max-w-4xl hidden" id="view-worker-detail">
+<div class="flex items-center justify-between">
+<button class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-on-surface hover:bg-slate-50 transition-colors" onclick="navigate('worker-feed')">
+<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+<span class="">Back to Job Feed</span>
+</button>
+<span class="px-3 py-1 rounded-full bg-secondary-container text-primary text-xs font-bold" id="workerJobBadge">Job #RJY-8491 • Open for Acceptance</span>
+</div>
+<div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col gap-4">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-[11px] font-bold text-primary uppercase">Electrical Services</span>
+<h2 class="text-xl font-heading font-bold text-on-surface mt-0.5">Main MCB Tripping &amp; Inverter Setup</h2>
+<p class="text-xs text-slate-500">Customer requested verified technician with clamp multimeter.</p>
+</div>
+<div class="text-right">
+<span class="text-xl font-extrabold text-primary block">₹299 - ₹500</span>
+<span class="text-[11px] text-slate-400">Guaranteed visit fee ₹299 upfront</span>
+</div>
+</div>
+<!-- Customer Identity Box -->
+<div class="p-4 rounded-xl bg-slate-50 flex flex-col gap-3">
+<div class="flex items-center justify-between flex-wrap gap-2">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">AS</div>
+<div>
+<h4 class="text-sm font-bold text-on-surface">Ananya Sharma</h4>
+<span class="text-xs text-primary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified</span> Verified Resident • 4.9 ★ (18 reviews)
+                  </span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-primary hover:bg-emerald-50 flex items-center gap-1" onclick="showToast('Calling Ananya Sharma (+91 94401 23456)...')">
+<span class="material-symbols-outlined text-[16px]">call</span> Call Customer
+                </button>
+<button class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-primary hover:bg-emerald-50 flex items-center gap-1" onclick="showToast('Opened resident direct chat.')">
+<span class="material-symbols-outlined text-[16px]">chat</span> Message
+                </button>
+</div>
+</div>
+<!-- Address Reveal -->
+<div class="p-3 rounded-lg bg-white border border-dashed border-slate-300 flex items-center justify-between" id="workerAddressBox">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">location_on</span>
+<div>
+<span class="text-[11px] text-slate-400 block">Customer Address:</span>
+<span class="text-xs font-bold text-slate-700" id="workerAddressValue">Krishna Residency, Danavaipeta (Flat number locked until job is accepted)</span>
+</div>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600" id="workerAddressBadge">Locked</span>
+</div>
+</div>
+<!-- Problem photos -->
+<div>
+<span class="text-xs font-bold text-on-surface block mb-2">Customer Attached Photos</span>
+<div class="grid grid-cols-2 gap-3">
+<img alt="MCB Box" class="w-full h-32 rounded-lg object-cover border border-slate-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJBYNEBmPCFJG8hSOOLvGe4zmoVXz_v4jEyEud7rpucPZnNOmbgl5wgl-RJhgD1PHh-wRnBcqVj8xwPwNvDy_VcJHeJYkh2T8A2DzBYFEP8s7FMI_OIGNgY7w6MVAhjTGnY82czqyEzRYaJEV3J1-r6gCVNsKsqfzkmn6iFlSN4dk2Vu6Yjf5NuHsTqo9ObeMAWpNUNvvs_H9LtFYdcGNJAJUAuAKyn8zGIQBw5A">
+<img alt="Inverter Wire" class="w-full h-32 rounded-lg object-cover border border-slate-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCs-6PFZe_jZZ3DaKLrRcsPVFoBwPwUR3eW3wpVwXmBfTGMG35E560Ur2ziLJdwHE8YnQE3JxBjFMkuIsgf6527tYfT2Nc1VCH6moBf1XzgoG_LsgTMPVCD0y9p8EOULmx9KGdH1erAsHoFLIdAJCp2DCTFoSdI6tarfKMfJPoTadOa7N03e3CPxMrgbi1IF0hW6_Uuud01RUL4WMOfpiEv-PeD7FfHFT8Z6abYqg">
+</div>
+</div>
+<!-- Action buttons -->
+<div class="pt-2 flex items-center justify-between border-t border-slate-100 flex-wrap gap-2">
+<span class="text-xs text-slate-500">Slot: Tomorrow, 10:30 AM • Flat fee ₹299 protected</span>
+<button class="px-6 py-2.5 rounded-full bg-primary hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all active:scale-95 flex items-center gap-2" id="btnWorkerAccept" onclick="acceptWorkerJob()">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span class="">Accept Job &amp; Reveal Flat Address</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- 3. AUTH PORTAL (SIGN IN, LOGIN, ROLES, CREATE ACCOUNT)  -->
+<!-- ======================================================== -->
+<div class="min-h-screen pt-9 bg-slate-50 flex flex-col justify-between hidden" id="view-role-selection">
+<!-- Auth Top Navigation Bar -->
+<header class="w-full bg-white border-b border-surface-container py-3.5 px-6 sm:px-10 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-[20px]">home_repair_service</span>
+</div>
+<div>
+<span class="font-heading font-bold text-base sm:text-lg text-primary leading-tight block">Local Workers</span>
+<span class="text-[11px] text-slate-500">Rajahmundry Artisan &amp; Resident Network</span>
+</div>
+</div>
+<div class="flex items-center gap-2 sm:gap-3">
+<button class="px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-primary rounded-full hover:bg-slate-100 transition-colors" onclick="openAuthModal('resident')">
+        Sign In
+      </button>
+<button class="px-3.5 py-1.5 text-xs font-semibold text-primary bg-secondary-container/60 hover:bg-secondary-container rounded-full transition-colors hidden xs:inline-block" onclick="openAuthModal('resident')">
+        Login
+      </button>
+<button class="px-4 py-1.5 text-xs font-bold text-white bg-primary hover:bg-emerald-800 rounded-full shadow-sm transition-all flex items-center gap-1" onclick="openRoleChoiceModal()">
+<span class="material-symbols-outlined text-[16px]">person_add</span>
+<span class="">Create Account</span>
+</button>
+</div>
+</header>
+<!-- Hero & Main Role Cards Container -->
+<div class="flex-1 flex flex-col items-center justify-center px-4 py-8 max-w-5xl mx-auto w-full">
+<!-- Header copy -->
+<div class="text-center max-w-xl mb-8">
+<span class="px-3 py-1 rounded-full bg-secondary-container text-primary font-bold text-xs uppercase tracking-wider inline-block mb-3">
+        Verified Local Services • Danavaipeta Hub
+      </span>
+<h1 class="text-2xl sm:text-3xl font-heading font-bold text-on-surface tracking-tight">
+        Connect with Verified Rajahmundry Artisans
+      </h1>
+<p class="text-xs sm:text-sm text-slate-600 mt-2">
+        Sign in to book instant trusted home services or accept jobs in your neighborhood.
+      </p>
+</div>
+<!-- Side-by-side Role Choice Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+<!-- Resident Role Card -->
+<div class="bg-white rounded-2xl p-6 sm:p-7 border-2 border-slate-200 hover:border-primary shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+<div class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="w-12 h-12 rounded-xl bg-emerald-50 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">apartment</span>
+</div>
+<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-primary">Resident Portal</span>
+</div>
+<h2 class="text-lg font-heading font-bold text-on-surface group-hover:text-primary transition-colors">Sign In as a Resident</h2>
+<p class="text-xs text-slate-600 leading-relaxed">
+            Post repair requests, browse pre-cleared electricians, plumbers and painters, and compare upfront quotes.
+          </p>
+<div class="space-y-1.5 pt-2">
+<div class="flex items-center gap-2 text-xs text-slate-600">
+<span class="material-symbols-outlined text-primary text-[16px]">check_circle</span>
+<span class="">Direct WhatsApp &amp; In-app booking</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-600">
+<span class="material-symbols-outlined text-primary text-[16px]">check_circle</span>
+<span class="">100% Police &amp; Aadhaar verified pros</span>
+</div>
+</div>
+</div>
+<div class="pt-6 mt-4 border-t border-slate-100 flex flex-col gap-2">
+<button class="w-full py-2.5 px-4 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition-all" onclick="openAuthModal('resident')">
+<span class="">Sign In as a Resident</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+<button class="w-full py-2 text-xs font-semibold text-primary hover:underline text-center" onclick="openCreateAccountForm('resident')">
+            New here? Create Resident Account
+          </button>
+</div>
+</div>
+<!-- Worker Role Card -->
+<div class="bg-white rounded-2xl p-6 sm:p-7 border-2 border-slate-200 hover:border-primary-container shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+<div class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-primary-container group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">handyman</span>
+</div>
+<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Worker Portal</span>
+</div>
+<h2 class="text-lg font-heading font-bold text-on-surface group-hover:text-emerald-800 transition-colors">Sign In as a Worker</h2>
+<p class="text-xs text-slate-600 leading-relaxed">
+            Access nearby repair jobs in Ward 14, get instant customer notifications, and earn daily with zero commissions.
+          </p>
+<div class="space-y-1.5 pt-2">
+<div class="flex items-center gap-2 text-xs text-slate-600">
+<span class="material-symbols-outlined text-primary text-[16px]">check_circle</span>
+<span class="">Instant customer lead dispatch</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-600">
+<span class="material-symbols-outlined text-primary text-[16px]">check_circle</span>
+<span class="">Fixed upfront visit fees</span>
+</div>
+</div>
+</div>
+<div class="pt-6 mt-4 border-t border-slate-100 flex flex-col gap-2">
+<button class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition-all" onclick="openAuthModal('worker')">
+<span class="">Sign In as a Worker</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+<button class="w-full py-2 text-xs font-semibold text-slate-700 hover:text-primary hover:underline text-center" onclick="openCreateAccountForm('worker')">
+            New pro? Register as a Worker
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Auth Footer -->
+<footer class="w-full py-4 text-center text-xs text-slate-500 border-t border-slate-200 bg-white">
+<p class="">Local Workers Portal • Danavaipeta, Rajahmundry • 24x7 Verified Municipal Directory</p>
+</footer>
+</div>
+<!-- ======================================================== -->
+<!-- MODALS: SIGN IN & OTP VERIFICATION MODAL                -->
+<!-- ======================================================== -->
+<div class="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden" id="modal-auth">
+<div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-150">
+<!-- Modal Header -->
+<div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold" id="authModalRoleIcon"><span class="material-symbols-outlined text-[18px]">handyman</span></div>
+<div>
+<h3 class="text-sm font-heading font-bold text-on-surface" id="authModalTitle">Sign In as Worker</h3>
+<p class="text-[11px] text-slate-500" id="authModalSubtitle">Access live customer job requests &amp; earnings</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors" onclick="closeAuthModal()">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<div class="p-6">
+<!-- STEP 1: MOBILE NUMBER INPUT -->
+<div class="space-y-4 hidden" id="authStepPhone">
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1.5" for="loginMobile">
+            Enter your 10-digit mobile number and get OTP
+          </label>
+<div class="flex items-center border border-slate-300 rounded-xl overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary bg-white">
+<span class="px-3.5 py-2.5 bg-slate-100 text-xs font-semibold text-slate-600 border-r border-slate-300 flex items-center gap-1">
+              🇮🇳 +91
+            </span>
+<input class="w-full text-sm font-semibold p-2.5 outline-none border-none focus:ring-0 text-on-surface" id="loginMobile" maxlength="10" placeholder="98765 43210" type="tel" value="9876543210">
+</div>
+<span class="text-[11px] text-slate-400 mt-1 block">A 4-digit verification code will be sent instantly.</span>
+</div>
+<button class="w-full py-3 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2" onclick="handleRequestOtp()">
+<span class="">Get OTP</span>
+<span class="material-symbols-outlined text-[16px]">sms</span>
+</button>
+<div class="pt-3 border-t border-slate-100 text-center">
+<p class="text-xs text-slate-500">
+            Don't have an account yet? 
+            <button class="font-bold text-primary hover:underline" onclick="switchFromSignInToCreate()">Create Account</button>
+</p>
+</div>
+</div>
+<!-- STEP 2: OTP VERIFICATION -->
+<div class="space-y-4" id="authStepOtp">
+<div class="text-center pb-1">
+<span class="w-10 h-10 rounded-full bg-emerald-50 text-primary inline-flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-[22px]">verified_user</span>
+</span>
+<h4 class="text-sm font-bold text-on-surface">Enter your OTP and verify</h4>
+<p class="text-xs text-slate-500 mt-0.5">
+            Sent to <span class="font-semibold text-on-surface" id="otpTargetMobile">+91 9876543210</span>
+</p>
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1.5 text-center">4-Digit Security Code</label>
+<div class="flex justify-center gap-3">
+<input class="text-center text-xl font-bold tracking-widest w-36 py-2 border-2 border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-primary bg-emerald-50/40" id="otpInputField" maxlength="4" type="text" value="4829">
+</div>
+<div class="flex items-center justify-between text-[11px] text-slate-500 mt-2 px-4">
+<span id="otpCountdown" class="">Resend in 0:24</span>
+<button class="text-primary font-bold hover:underline" onclick="resendDemoOtp()">Resend OTP</button>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2" onclick="handleVerifyOtp()">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span id="btnVerifyText" class="">Verify &amp; Open Worker Job Feed</span>
+</button>
+<button class="w-full text-xs font-semibold text-slate-500 hover:text-slate-800 text-center block pt-1" onclick="showAuthStepPhone()">
+          ← Change Mobile Number
+        </button>
+</div>
+</div>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- MODALS: CREATE ACCOUNT ROLE SELECTOR & FORMS            -->
+<!-- ======================================================== -->
+<!-- 1. Role Selection Popup for Account Creation -->
+<div class="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden" id="modal-role-choice">
+<div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+<div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+<div>
+<h3 class="text-sm font-heading font-bold text-on-surface">Choose Account Type</h3>
+<p class="text-[11px] text-slate-500">Select how you want to use Local Workers</p>
+</div>
+<button class="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors" onclick="closeRoleChoiceModal()">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<div class="p-6 flex flex-col gap-3.5">
+<button class="w-full p-4 rounded-xl border-2 border-slate-200 hover:border-primary text-left hover:bg-emerald-50/50 transition-all flex items-center justify-between group" onclick="openCreateAccountForm('resident')">
+<div class="flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-emerald-100 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">apartment</span>
+</div>
+<div>
+<h4 class="text-xs font-bold text-on-surface group-hover:text-primary">Create Account as a Resident</h4>
+<p class="text-[11px] text-slate-500">I need electricians, plumbers &amp; home services</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary">arrow_forward</span>
+</button>
+<button class="w-full p-4 rounded-xl border-2 border-slate-200 hover:border-slate-800 text-left hover:bg-slate-50 transition-all flex items-center justify-between group" onclick="openCreateAccountForm('worker')">
+<div class="flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined">handyman</span>
+</div>
+<div>
+<h4 class="text-xs font-bold text-on-surface group-hover:text-slate-900">Create Account as a Worker</h4>
+<p class="text-[11px] text-slate-500">I am a technician looking for neighborhood jobs</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-slate-800">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 2. Registration Form Modal (Resident / Worker) -->
+<div class="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto hidden" id="modal-create-account">
+<div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-6">
+<div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold" id="regFormIcon"><span class="material-symbols-outlined text-[18px]">apartment</span></div>
+<div>
+<h3 class="text-sm font-heading font-bold text-on-surface" id="regFormTitle">Create Resident Account</h3>
+<p class="text-[11px] text-slate-500">Rajahmundry Municipal Ward 14 Directory</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors" onclick="closeCreateAccountModal()">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- RESIDENT REGISTRATION FORM -->
+<form class="p-6 flex flex-col gap-4" id="formCreateResident" onsubmit="handleResidentRegisterSubmit(event)">
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regResName">Full Name</label>
+<input class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="regResName" placeholder="e.g. Ananya Sharma" required="" type="text" value="Ananya Sharma">
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regResMobile">10-Digit Mobile Number</label>
+<div class="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+<span class="px-3 py-2 bg-slate-100 text-xs font-semibold text-slate-600 border-r border-slate-200">🇮🇳 +91</span>
+<input class="w-full text-xs p-2.5 outline-none border-none" id="regResMobile" maxlength="10" placeholder="94401 23456" required="" type="tel" value="9440123456">
+</div>
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regResAddress">Address / Apartment in Rajahmundry</label>
+<input class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="regResAddress" placeholder="e.g. Krishna Residency, Flat #402, Danavaipeta" required="" type="text" value="Flat #402, Krishna Residency, Danavaipeta, Rajahmundry">
+</div>
+<!-- OTP Step Inside Registration -->
+<div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-bold text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined text-primary text-[16px]">sms</span> Enter OTP to verify number
+          </span>
+<span class="text-[10px] font-semibold text-primary">Demo OTP: 4829</span>
+</div>
+<div class="flex gap-2">
+<input class="w-28 text-center text-sm font-bold tracking-widest p-2 rounded-lg border border-slate-300 focus:border-primary outline-none bg-white" id="regResOtp" maxlength="4" required="" type="text" value="4829">
+<button class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-primary text-xs font-semibold" onclick="showToast('OTP auto-filled for quick demo verification: 4829')" type="button">
+            Auto-fill
+          </button>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl bg-primary hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mt-1 cursor-pointer" id="btnSubmitResidentCreate" type="submit">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+<span class="">Create Resident Account &amp; Open Home</span>
+</button>
+<p class="text-center text-xs text-slate-500">
+        Already have an account? <button class="font-bold text-primary underline" onclick="closeCreateAccountModal(); openAuthModal('resident')" type="button">Sign In</button>
+</p>
+</form>
+<!-- WORKER REGISTRATION FORM -->
+<form class="p-6 flex flex-col gap-4 hidden" id="formCreateWorker" onsubmit="handleWorkerRegisterSubmit(event)">
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regWorkerName">Full Name</label>
+<input class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="regWorkerName" placeholder="e.g. Ramesh Kumar" required="" type="text" value="Ramesh Kumar">
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regWorkerMobile">10-Digit Mobile Number</label>
+<div class="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+<span class="px-3 py-2 bg-slate-100 text-xs font-semibold text-slate-600 border-r border-slate-200">🇮🇳 +91</span>
+<input class="w-full text-xs p-2.5 outline-none border-none" id="regWorkerMobile" maxlength="10" placeholder="98765 43210" required="" type="tel" value="9876543210">
+</div>
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regWorkerAddress">Address / Hub in Rajahmundry</label>
+<input class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="regWorkerAddress" placeholder="e.g. Danavaipeta Main Junction, Ward 14" required="" type="text" value="Danavaipeta Main Junction, Ward 14, Rajahmundry">
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regWorkerTrade">Which type of work (Trade)</label>
+<select class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white" id="regWorkerTrade">
+<option selected="" value="Electrician">Electrician</option>
+<option value="Plumber">Plumber</option>
+<option value="Carpenter">Carpenter</option>
+<option value="AC Technician">AC Technician</option>
+<option value="Painter">Painter</option>
+<option value="Cleaner">Deep Cleaner</option>
+</select>
+</div>
+<div>
+<label class="text-xs font-bold text-on-surface block mb-1" for="regWorkerFee">Visiting fee (₹)</label>
+<input class="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none" id="regWorkerFee" placeholder="299" required="" type="number" value="299">
+</div>
+</div>
+<!-- OTP Step Inside Registration -->
+<div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-bold text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined text-primary text-[16px]">sms</span> Enter OTP to verify number
+          </span>
+<span class="text-[10px] font-semibold text-primary">Demo OTP: 4829</span>
+</div>
+<div class="flex gap-2">
+<input class="w-28 text-center text-sm font-bold tracking-widest p-2 rounded-lg border border-slate-300 focus:border-primary outline-none bg-white" id="regWorkerOtp" maxlength="4" required="" type="text" value="4829">
+<button class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-primary text-xs font-semibold" onclick="showToast('Worker verification code: 4829')" type="button">
+            Auto-fill
+          </button>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mt-1 cursor-pointer" type="submit">
+<span class="material-symbols-outlined text-[16px]">task_alt</span>
+<span class="">Create Worker Account &amp; Open Feed</span>
+</button>
+<p class="text-center text-xs text-slate-500">
+        Already registered? <button class="font-bold text-primary underline" onclick="closeCreateAccountModal(); openAuthModal('worker')" type="button">Sign In</button>
+</p>
+</form>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- TOAST POPUP                                             -->
+<!-- ======================================================== -->
+<!-- RAJAHMUNDRY LOCALITY SELECTOR MODAL --><div id="modal-location" class="fixed inset-0 z-[115] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden"><div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-150"><div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50"><div class="flex items-center gap-2.5"><div class="w-8 h-8 rounded-full bg-emerald-100 text-primary flex items-center justify-center"><span class="material-symbols-outlined text-[18px]">location_city</span></div><div><h3 class="text-sm font-heading font-bold text-on-surface">Select Rajahmundry Locality</h3><p class="text-[11px] text-slate-500">Browse verified technicians in your municipal zone</p></div></div><button class="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors" onclick="toggleLocationModal()"><span class="material-symbols-outlined text-[20px]">close</span></button></div><div class="p-4 flex flex-col gap-3"><div class="relative"><span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span><input id="localitySearchInput" type="text" placeholder="Search Rajahmundry neighborhood or ward..." class="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-primary focus:ring-1 focus:ring-primary" oninput="filterLocalities(this.value)"></div><div><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Popular Localities (Ward 1 to 50)</span><div id="localityList" class="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1"><button type="button" onclick="selectLocality('Danavaipeta', 'Ward 14', '0.0 km')" class="locality-item w-full p-2.5 rounded-xl border border-primary bg-emerald-50/50 flex items-center justify-between hover:bg-emerald-100/50 text-left transition-colors" data-name="Danavaipeta"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-primary text-[18px]">my_location</span><div><span class="text-xs font-bold text-on-surface block">Danavaipeta</span><span class="text-[11px] text-slate-500">Ward 14 • Central Hub (Active)</span></div></div><span class="px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold">Current</span></button><button type="button" onclick="selectLocality('Prakash Nagar', 'Ward 21', '1.2 km')" class="locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors" data-name="Prakash Nagar"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span><div><span class="text-xs font-bold text-on-surface block">Prakash Nagar</span><span class="text-[11px] text-slate-500">Ward 21 • Near RTC Complex</span></div></div><span class="text-[11px] font-semibold text-emerald-700">1.2 km away</span></button><button type="button" onclick="selectLocality('Aryapuram', 'Ward 9', '1.8 km')" class="locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors" data-name="Aryapuram"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span><div><span class="text-xs font-bold text-on-surface block">Aryapuram</span><span class="text-[11px] text-slate-500">Ward 9 • Devichowk Area</span></div></div><span class="text-[11px] font-semibold text-emerald-700">1.8 km away</span></button><button type="button" onclick="selectLocality('Morampudi', 'Ward 34', '3.1 km')" class="locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors" data-name="Morampudi"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span><div><span class="text-xs font-bold text-on-surface block">Morampudi</span><span class="text-[11px] text-slate-500">Ward 34 • Morampudi Junction</span></div></div><span class="text-[11px] font-semibold text-emerald-700">3.1 km away</span></button><button type="button" onclick="selectLocality('Innespeta', 'Ward 12', '1.5 km')" class="locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors" data-name="Innespeta"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span><div><span class="text-xs font-bold text-on-surface block">Innespeta</span><span class="text-[11px] text-slate-500">Ward 12 • Godavari Riverfront</span></div></div><span class="text-[11px] font-semibold text-emerald-700">1.5 km away</span></button><button type="button" onclick="selectLocality('Kotipalli', 'Ward 17', '2.4 km')" class="locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors" data-name="Kotipalli"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span><div><span class="text-xs font-bold text-on-surface block">Kotipalli Bus Stand</span><span class="text-[11px] text-slate-500">Ward 17 • Main Market Hub</span></div></div><span class="text-[11px] font-semibold text-emerald-700">2.4 km away</span></button><button type="button" onclick="selectLocality('Lalitha Nagar', 'Ward 25', '2.0 km')" class="locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors" data-name="Lalitha Nagar"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span><div><span class="text-xs font-bold text-on-surface block">Lalitha Nagar</span><span class="text-[11px] text-slate-500">Ward 25 • Syamala Nagar Link</span></div></div><span class="text-[11px] font-semibold text-emerald-700">2.0 km away</span></button><button type="button" onclick="selectLocality('Katheru', 'Ward 45', '4.2 km')" class="locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors" data-name="Katheru"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-[18px]">location_on</span><div><span class="text-xs font-bold text-on-surface block">Katheru</span><span class="text-[11px] text-slate-500">Ward 45 • Northern Zone</span></div></div><span class="text-[11px] font-semibold text-emerald-700">4.2 km away</span></button></div></div><div class="p-2.5 bg-slate-50 rounded-xl flex items-center justify-between text-[11px] text-slate-500"><span class="flex items-center gap-1"><span class="material-symbols-outlined text-primary text-[15px]">verified</span> Rajahmundry Municipal Corp.</span><span class="">Ward 1 - 50 Supported</span></div></div></div></div><!-- WORKER / RESIDENT DIRECT MESSAGES & INBOX MODAL --><div id="modal-messages-inbox" class="fixed inset-0 z-[115] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 hidden"><div class="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[600px] animate-in fade-in zoom-in duration-150"><div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm"><span class="material-symbols-outlined text-[20px]">chat</span></div><div><div class="flex items-center gap-2"><h3 class="text-sm font-heading font-bold text-on-surface">Resident Messages &amp; Direct Chat</h3><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-primary text-[10px] font-bold">Live Ward 14</span></div><p class="text-[11px] text-slate-500">Real-time communication with verified local residents</p></div></div><div class="flex items-center gap-2"><button type="button" class="p-1.5 rounded-full hover:bg-slate-200 text-slate-500 transition-colors" onclick="showToast('Inbox refreshed! All messages synced.')" title="Refresh messages"><span class="material-symbols-outlined text-[18px]">refresh</span></button><button type="button" class="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors" onclick="closeMessagesInboxModal()"><span class="material-symbols-outlined text-[20px]">close</span></button></div></div><div class="flex-1 flex flex-col md:flex-row overflow-hidden"><div class="w-full md:w-80 border-r border-slate-200 flex flex-col bg-slate-50/50"><div class="p-3 border-b border-slate-200 bg-white"><div class="relative"><span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-[16px]">search</span><input type="text" placeholder="Search resident conversations..." class="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 outline-none focus:border-primary focus:ring-1 focus:ring-primary"></div></div><div class="flex-1 overflow-y-auto divide-y divide-slate-100"><div id="thread-ananya" class="p-3 bg-emerald-50/70 border-l-4 border-primary cursor-pointer transition-all hover:bg-emerald-50" onclick="selectThread('ananya')"><div class="flex items-start justify-between"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center shrink-0">AS</div><div><h4 class="text-xs font-bold text-on-surface">Ananya Sharma</h4><span class="text-[10px] text-slate-500 block truncate max-w-[130px]">Krishna Res. #402</span></div></div><div class="text-right"><span class="text-[10px] text-slate-400 block">10m ago</span><span class="px-1.5 py-0.2 rounded-full bg-primary-container text-white text-[9px] font-bold">1 new</span></div></div><p class="text-[11px] text-slate-700 mt-1.5 line-clamp-1">Hello Ramesh ji, can you arrive 15 minutes early for the MCB tripping issue?</p></div><div id="thread-venkatesh" class="p-3 bg-white hover:bg-slate-50 cursor-pointer transition-all" onclick="selectThread('venkatesh')"><div class="flex items-start justify-between"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center shrink-0">KV</div><div><h4 class="text-xs font-bold text-on-surface">K. Venkatesh</h4><span class="text-[10px] text-slate-500 block truncate max-w-[130px]">Prakash Nagar (1.2 km)</span></div></div><span class="text-[10px] text-slate-400">1h ago</span></div><p class="text-[11px] text-slate-500 mt-1.5 line-clamp-1">Regarding the ceiling fan and LED wiring slot tomorrow morning, is 11 AM confirmed?</p></div><div id="thread-ratnam" class="p-3 bg-white hover:bg-slate-50 cursor-pointer transition-all" onclick="selectThread('ratnam')"><div class="flex items-start justify-between"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">SR</div><div><h4 class="text-xs font-bold text-on-surface">S. Ratnam</h4><span class="text-[10px] text-slate-500 block truncate max-w-[130px]">Aryapuram Ward 9</span></div></div><span class="text-[10px] text-slate-400">Yesterday</span></div><p class="text-[11px] text-slate-500 mt-1.5 line-clamp-1">Need quote for 16A water heater power point installation.</p></div></div></div><div class="flex-1 flex flex-col bg-white overflow-hidden"><div class="p-3 border-b border-slate-200 bg-white flex items-center justify-between flex-wrap gap-2"><div class="flex items-center gap-3"><div id="chatActiveAvatar" class="w-9 h-9 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center shrink-0">AS</div><div><div class="flex items-center gap-1.5"><h4 id="chatActiveName" class="text-xs font-bold text-on-surface">Ananya Sharma</h4><span class="px-1.5 py-0.2 rounded bg-emerald-100 text-primary text-[10px] font-semibold flex items-center gap-0.5"><span class="material-symbols-outlined text-[11px]">verified</span> Verified</span></div><span id="chatActiveAddress" class="text-[11px] text-slate-500 block">Krishna Residency, Flat #402, Danavaipeta • Gate Pass #0402</span></div></div><div class="flex items-center gap-2"><button type="button" class="px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-primary text-xs font-semibold flex items-center gap-1 transition-colors" onclick="showToast('Calling resident Ananya Sharma (+91 94401 23456)...')"><span class="material-symbols-outlined text-[15px]">call</span> Call</button><button type="button" class="px-2.5 py-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1 transition-colors" onclick="showToast('Redirecting to WhatsApp conversation (+91 94401 23456)...')"><span class="material-symbols-outlined text-[15px]">chat</span> WhatsApp</button></div></div><div id="activeChatStream" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/40"><div class="flex items-start gap-2 max-w-[85%]"><div class="w-7 h-7 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center shrink-0">AS</div><div class="bg-white p-3 rounded-2xl rounded-tl-none text-xs text-slate-800 shadow-sm border border-slate-200"><p class="">Namaskaram Ramesh ji! I saw your offer of ₹299 for the 32A MCB tripping repair.</p><span class="text-[9px] text-slate-400 block mt-1 text-right">09:12 AM</span></div></div><div class="flex items-start gap-2 max-w-[85%] ml-auto justify-end"><div class="bg-primary text-white p-3 rounded-2xl rounded-tr-none text-xs shadow-sm"><p class="">Namaskaram Ananya garu. Yes, I have genuine 32A Schneider breakers and a clamp multimeter with me in Danavaipeta.</p><span class="text-[9px] text-emerald-200 block mt-1 text-right">09:15 AM • ✓✓</span></div></div><div class="flex items-start gap-2 max-w-[85%]"><div class="w-7 h-7 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center shrink-0">AS</div><div class="bg-white p-3 rounded-2xl rounded-tl-none text-xs text-slate-800 shadow-sm border border-slate-200"><p class="">Hello Ramesh ji, can you arrive 15 minutes early for the MCB tripping issue? Gate security is already informed for flat #402.</p><span class="text-[9px] text-slate-400 block mt-1 text-right">10 mins ago</span></div></div></div><div class="px-3 py-1.5 bg-slate-50 border-t border-slate-200 flex items-center gap-1.5 overflow-x-auto"><span class="text-[10px] text-slate-400 font-semibold shrink-0">Quick reply:</span><button type="button" class="px-2.5 py-0.5 rounded-full bg-white border border-slate-200 hover:border-primary text-[11px] text-slate-700 hover:text-primary shrink-0 transition-colors" onclick="insertQuickReply('I am on my way to Danavaipeta!')">I am on my way</button><button type="button" class="px-2.5 py-0.5 rounded-full bg-white border border-slate-200 hover:border-primary text-[11px] text-slate-700 hover:text-primary shrink-0 transition-colors" onclick="insertQuickReply('Confirmed for 10:15 AM tomorrow.')">Confirmed for 10:15 AM</button><button type="button" class="px-2.5 py-0.5 rounded-full bg-white border border-slate-200 hover:border-primary text-[11px] text-slate-700 hover:text-primary shrink-0 transition-colors" onclick="insertQuickReply('Please share the Gate OTP when I reach.')">Please share gate OTP</button></div><form class="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2" onsubmit="sendActiveStreamMessage(event)"><input id="modalChatInput" type="text" placeholder="Type a message to resident..." class="flex-1 text-xs px-3 py-2 rounded-full border border-slate-200 outline-none focus:border-primary focus:ring-1 focus:ring-primary"><button type="submit" class="p-2 rounded-full bg-primary text-white hover:bg-emerald-800 flex items-center justify-center shadow-sm"><span class="material-symbols-outlined text-[18px]">send</span></button></form></div></div></div></div><div class="fixed bottom-5 right-5 z-[120] bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2 hidden" id="toast">
+<span class="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+<span class="" id="toastMsg">Earnings: ₹6,450 paid directly to UPI this week.</span>
+</div>
+<!-- ======================================================== -->
+<!-- JAVASCRIPT STATE & ROUTING ENGINE                        -->
+<!-- ======================================================== -->
+<script>
+  let currentRole = 'resident'; // 'resident' or 'worker'
+  let authTargetRole = 'resident'; // which role is signing in
+  let isWorkerOnDuty = true;
+  let selectedTrade = 'Electrician';
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+    toastMsg.innerText = msg;
+    toast.classList.remove('hidden');
+    clearTimeout(window._toastTimeout);
+    window._toastTimeout = setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 3500);
+  }
+
+  // SIGN OUT FUNCTION
+  function signOutToAuth() {
+    navigate('role-selection');
+    showToast('Signed out successfully. Choose your role to log in.');
+  }
+
+  // AUTH MODAL LOGIC (Sign In / Login / OTP)
+  function openAuthModal(role) {
+    authTargetRole = role || 'resident';
+    const modal = document.getElementById('modal-auth');
+    const roleIcon = document.getElementById('authModalRoleIcon');
+    const title = document.getElementById('authModalTitle');
+    const subtitle = document.getElementById('authModalSubtitle');
+    const verifyBtn = document.getElementById('btnVerifyText');
+
+    if (authTargetRole === 'resident') {
+      roleIcon.innerHTML = `<span class="material-symbols-outlined text-[18px]">apartment</span>`;
+      roleIcon.className = "w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold";
+      title.innerText = "Sign In as Resident";
+      subtitle.innerText = "Access your home service requests & bookings";
+      verifyBtn.innerText = "Verify & Open Resident Home";
+    } else {
+      roleIcon.innerHTML = `<span class="material-symbols-outlined text-[18px]">handyman</span>`;
+      roleIcon.className = "w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold";
+      title.innerText = "Sign In as Worker";
+      subtitle.innerText = "Access live customer job requests & earnings";
+      verifyBtn.innerText = "Verify & Open Worker Job Feed";
+    }
+
+    showAuthStepPhone();
+    modal.classList.remove('hidden');
+  }
+
+  function closeAuthModal() {
+    document.getElementById('modal-auth').classList.add('hidden');
+  }
+
+  function showAuthStepPhone() {
+    document.getElementById('authStepPhone').classList.remove('hidden');
+    document.getElementById('authStepOtp').classList.add('hidden');
+  }
+
+  function handleRequestOtp() {
+    const mobile = document.getElementById('loginMobile').value.trim();
+    if (!mobile || mobile.length < 10) {
+      showToast('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    document.getElementById('otpTargetMobile').innerText = `+91 ${mobile}`;
+    document.getElementById('authStepPhone').classList.add('hidden');
+    document.getElementById('authStepOtp').classList.remove('hidden');
+    showToast(`OTP 4829 sent to +91 ${mobile}`);
+  }
+
+  function resendDemoOtp() {
+    showToast('Resent code 4829 to your mobile number!');
+    document.getElementById('otpCountdown').innerText = 'Resent! (0:30)';
+  }
+
+  function handleVerifyOtp() {
+    const otp = document.getElementById('otpInputField').value.trim();
+    if (otp !== '4829' && otp.length < 4) {
+      showToast('Please enter the 4-digit code (Use demo 4829)');
+      return;
+    }
+    closeAuthModal();
+    if (authTargetRole === 'resident') {
+      showToast('OTP verified! Welcome back Ananya Sharma.');
+      navigate('resident-home');
+    } else {
+      showToast('OTP verified! Welcome back Ramesh Kumar.');
+      navigate('worker-feed');
+    }
+  }
+
+  function switchFromSignInToCreate() {
+    closeAuthModal();
+    openRoleChoiceModal();
+  }
+
+  // ROLE CHOICE MODAL
+  function openRoleChoiceModal() {
+    document.getElementById('modal-role-choice').classList.remove('hidden');
+  }
+
+  function closeRoleChoiceModal() {
+    document.getElementById('modal-role-choice').classList.add('hidden');
+  }
+
+  // CREATE ACCOUNT FORMS
+  function openCreateAccountForm(role) {
+    closeRoleChoiceModal();
+    const modal = document.getElementById('modal-create-account');
+    const resForm = document.getElementById('formCreateResident');
+    const workerForm = document.getElementById('formCreateWorker');
+    const icon = document.getElementById('regFormIcon');
+    const title = document.getElementById('regFormTitle');
+
+    if (role === 'resident') {
+      resForm.classList.remove('hidden');
+      workerForm.classList.add('hidden');
+      icon.innerHTML = `<span class="material-symbols-outlined text-[18px]">apartment</span>`;
+      icon.className = "w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold";
+      title.innerText = "Create Resident Account";
+    } else {
+      resForm.classList.add('hidden');
+      workerForm.classList.remove('hidden');
+      icon.innerHTML = `<span class="material-symbols-outlined text-[18px]">handyman</span>`;
+      icon.className = "w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold";
+      title.innerText = "Create Worker Account";
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  function closeCreateAccountModal() {
+    document.getElementById('modal-create-account').classList.add('hidden');
+  }
+
+  function handleResidentRegisterSubmit(e) {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    const nameInput = document.getElementById('regResName');
+    const addressInput = document.getElementById('regResAddress');
+    const phoneInput = document.getElementById('regResMobile');
+
+    const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Ananya Sharma';
+    const address = (addressInput && addressInput.value.trim()) ? addressInput.value.trim() : 'Flat #402, Krishna Residency, Danavaipeta, Rajahmundry';
+    const phone = (phoneInput && phoneInput.value.trim()) ? phoneInput.value.trim() : '9876543210';
+
+    // Compute initials
+    const initials = name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AS';
+
+    // Update UI profile elements
+    const topNameElem = document.getElementById('residentTopName');
+    if (topNameElem) topNameElem.innerText = name;
+
+    const welcomeNameElem = document.getElementById('welcomeResidentName');
+    if (welcomeNameElem) welcomeNameElem.innerText = name.split(' ')[0] || name;
+
+    const topAddressElem = document.getElementById('residentTopAddress');
+    if (topAddressElem) topAddressElem.innerText = address;
+
+    const welcomeAddressElem = document.getElementById('welcomeResidentAddress');
+    if (welcomeAddressElem) welcomeAddressElem.innerText = `${address} • RMC Ward 14`;
+
+    const profileCardName = document.getElementById('profileCardName');
+    if (profileCardName) profileCardName.innerText = name;
+
+    const profileCardAddress = document.getElementById('profileCardAddress');
+    if (profileCardAddress) profileCardAddress.innerText = address;
+
+    const profileCardPhone = document.getElementById('profileCardPhone');
+    if (profileCardPhone) profileCardPhone.innerText = `Phone: +91 ${phone}`;
+
+    const avatarElem = document.getElementById('residentAvatarInitials');
+    if (avatarElem) avatarElem.innerText = initials;
+
+    const profileInitialsElem = document.getElementById('profileCardInitials');
+    if (profileInitialsElem) profileInitialsElem.innerText = initials;
+
+    // Close the create account modal immediately
+    closeCreateAccountModal();
+
+    // Immediately navigate to Resident Dashboard and show toast
+    navigate('resident-home');
+    showToast(`Account created! Welcome to Resident Portal, ${name}`);
+    return false;
+  }
+
+  function handleWorkerRegisterSubmit(e) {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    const name = document.getElementById('regWorkerName').value.trim() || 'Ramesh Kumar';
+    const trade = document.getElementById('regWorkerTrade').value;
+    const fee = document.getElementById('regWorkerFee').value || '299';
+
+    document.getElementById('workerHeaderName').innerText = name;
+    document.getElementById('workerTopName').innerText = name;
+    document.getElementById('workerTopRole').innerText = `${trade} Pro (₹${fee})`;
+
+    closeCreateAccountModal();
+    showToast(`Worker account created! Welcome ${name} (${trade}).`);
+    navigate('worker-feed');
+    return false;
+  }
+
+  // Master View Navigation Router
+  function navigate(viewName) {
+    // Hide all shells & top containers
+    document.getElementById('resident-shell').classList.add('hidden');
+    document.getElementById('worker-shell').classList.add('hidden');
+    document.getElementById('view-role-selection').classList.add('hidden');
+
+    // Hide all resident sub-pages
+    document.querySelectorAll('#resident-shell .page-view').forEach(p => p.classList.add('hidden'));
+    // Hide all worker sub-pages
+    document.querySelectorAll('#worker-shell .page-view').forEach(p => p.classList.add('hidden'));
+
+    if (viewName === 'role-selection') {
+      document.getElementById('view-role-selection').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (viewName.startsWith('resident-')) {
+      document.getElementById('resident-shell').classList.remove('hidden');
+      currentRole = 'resident';
+      if (viewName === 'resident-home') {
+        document.getElementById('view-resident-home').classList.remove('hidden');
+        setResidentActiveNav('home');
+      } else if (viewName === 'resident-request-detail') {
+        document.getElementById('view-resident-request-detail').classList.remove('hidden');
+        setResidentActiveNav('requests');
+      }
+    } else if (viewName.startsWith('worker-')) {
+      document.getElementById('worker-shell').classList.remove('hidden');
+      currentRole = 'worker';
+      if (viewName === 'worker-feed') {
+        document.getElementById('view-worker-feed').classList.remove('hidden');
+        setWorkerActiveNav('feed');
+      } else if (viewName === 'worker-detail') {
+        document.getElementById('view-worker-detail').classList.remove('hidden');
+        setWorkerActiveNav('myjobs');
+      }
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openResidentTab(tabName) {
+    document.getElementById('resident-shell').classList.remove('hidden');
+    document.getElementById('worker-shell').classList.add('hidden');
+    document.getElementById('view-role-selection').classList.add('hidden');
+
+    document.querySelectorAll('#resident-shell .page-view').forEach(p => p.classList.add('hidden'));
+
+    if (tabName === 'messages') {
+      document.getElementById('view-resident-messages').classList.remove('hidden');
+    } else if (tabName === 'payments') {
+      document.getElementById('view-resident-payments').classList.remove('hidden');
+    } else if (tabName === 'profile') {
+      document.getElementById('view-resident-profile').classList.remove('hidden');
+    }
+
+    setResidentActiveNav(tabName);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function setResidentActiveNav(tabKey) {
+    const keys = ['home', 'requests', 'messages', 'payments', 'profile'];
+    keys.forEach(k => {
+      const btn = document.getElementById(`res-nav-${k}`);
+      if (!btn) return;
+      if (k === tabKey) {
+        btn.className = "flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-semibold active-nav transition-colors";
+      } else {
+        btn.className = "flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors";
+      }
+    });
+  }
+
+  function setWorkerActiveNav(tabKey) {
+    const feedBtn = document.getElementById('worker-nav-feed');
+    const jobsBtn = document.getElementById('worker-nav-myjobs');
+    if (tabKey === 'feed') {
+      feedBtn.className = "flex items-center justify-between px-3.5 py-2.5 rounded-full text-sm font-semibold active-nav transition-colors";
+      jobsBtn.className = "flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors";
+    } else {
+      jobsBtn.className = "flex items-center gap-3 px-3.5 py-2.5 rounded-full text-sm font-semibold active-nav transition-colors";
+      feedBtn.className = "flex items-center justify-between px-3.5 py-2.5 rounded-full text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors";
+    }
+  }
+
+  // Trade Selector
+  function selectTrade(tradeName) {
+    selectedTrade = tradeName;
+    document.querySelectorAll('.trade-chip').forEach(btn => {
+      if (btn.getAttribute('data-trade') === tradeName) {
+        btn.className = "trade-chip p-2 rounded-lg bg-primary-container text-white text-xs font-semibold flex flex-col items-center justify-center gap-1 transition-all";
+      } else {
+        btn.className = "trade-chip p-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-medium flex flex-col items-center justify-center gap-1 hover:bg-emerald-50 transition-all";
+      }
+    });
+  }
+
+  function prefillTrade(tradeName, desc) {
+    selectTrade(tradeName);
+    document.getElementById('postDesc').value = desc;
+    document.getElementById('postDesc').focus();
+    showToast(`Selected ${tradeName} requirement!`);
+  }
+
+  // Post Request Form Handler
+  function handlePostRequest(e) {
+    e.preventDefault();
+    const desc = document.getElementById('postDesc').value.trim();
+    const slot = document.getElementById('postSlot').value.trim();
+    const budget = document.getElementById('postBudget').value.trim() || '450';
+
+    if (!desc) return;
+
+    // Create new card in ongoing container
+    const container = document.getElementById('ongoingCardContainer');
+    const newCard = document.createElement('div');
+    newCard.className = "rounded-xl bg-white p-4 shadow-sm border-2 border-primary-container flex flex-col gap-2";
+    newCard.innerHTML = `
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-primary uppercase">${selectedTrade}</span>
+          <h4 class="text-sm font-bold text-on-surface mt-1">${desc.substring(0, 36)}...</h4>
+          <p class="text-xs text-slate-500">Slot: ${slot} • Broadcasting to Danavaipeta</p>
+        </div>
+        <span class="text-xs font-bold text-primary">₹${budget}</span>
+      </div>
+      <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+        <span class="text-emerald-700 font-semibold flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Alerting pros
+        </span>
+        <button onclick="navigate('resident-request-detail')" class="text-primary font-semibold hover:underline">View Live</button>
+      </div>
+    `;
+    container.prepend(newCard);
+
+    // Update counts
+    document.getElementById('ongoingCount').innerText = '4';
+    document.getElementById('resSidebarCount').innerText = '4';
+    document.getElementById('statOpenCount').innerText = '4';
+
+    document.getElementById('postDesc').value = '';
+    showToast(`Request posted! 3 nearby Danavaipeta ${selectedTrade}s alerted.`);
+  }
+
+  // Accept Offer in Resident View
+  function acceptOffer(name, price) {
+    document.getElementById('detailStatusBadge').innerText = `Status: Assigned to ${name}`;
+    document.getElementById('detailStatusBadge').className = "px-3 py-1 rounded-full bg-primary text-white text-xs font-bold";
+    
+    const rameshBtn = document.getElementById('btnAcceptRamesh');
+    if (rameshBtn) {
+      rameshBtn.className = "px-4 py-1.5 rounded-full bg-emerald-100 text-primary text-xs font-bold flex items-center gap-1";
+      rameshBtn.innerHTML = `<span class="material-symbols-outlined text-[14px]">check</span> Confirmed (${price})`;
+    }
+    showToast(`Offer accepted! ${name} booked for tomorrow 10:30 AM.`);
+  }
+
+  // Worker Duty Toggle
+  function toggleDuty() {
+    isWorkerOnDuty = !isWorkerOnDuty;
+    const dot = document.getElementById('dutyDot');
+    const text = document.getElementById('dutyText');
+    const btn = document.getElementById('btnDuty');
+    if (isWorkerOnDuty) {
+      dot.className = "w-2.5 h-2.5 rounded-full bg-primary-container animate-pulse";
+      text.innerText = "Accepting Calls (On Duty)";
+      btn.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container text-primary text-xs font-semibold shadow-sm";
+      showToast("You are now ON DUTY and will receive Danavaipeta jobs.");
+    } else {
+      dot.className = "w-2.5 h-2.5 rounded-full bg-slate-400";
+      text.innerText = "Duty Paused (Off Duty)";
+      btn.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-semibold shadow-sm";
+      showToast("Duty paused. Job alerts snoozed.");
+    }
+  }
+
+  // Worker Accepts Job in Detail View
+  function acceptWorkerJob() {
+    document.getElementById('workerAddressValue').innerText = "Flat #402, Krishna Residency, Danavaipeta, Rajahmundry (Gate Pass #0402)";
+    document.getElementById('workerAddressValue').className = "text-xs font-bold text-emerald-800";
+    
+    document.getElementById('workerAddressBadge').innerText = "Address Revealed";
+    document.getElementById('workerAddressBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800";
+
+    document.getElementById('workerJobBadge').innerText = "Job Assigned to You";
+    document.getElementById('workerJobBadge').className = "px-3 py-1 rounded-full bg-primary text-white text-xs font-bold";
+
+    const btn = document.getElementById('btnWorkerAccept');
+    btn.className = "px-6 py-2.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-2";
+    btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">task_alt</span> <span>Job Accepted! Flat Address Unlocked</span>`;
+
+    showToast("Job accepted! Flat address and intercom code revealed.");
+  }
+
+  // Send Chat Message
+  function sendChatMessage(e) {
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    const chatBox = document.getElementById('chatBox');
+    const bubble = document.createElement('div');
+    bubble.className = "flex items-start gap-2 max-w-[80%] ml-auto justify-end";
+    bubble.innerHTML = `
+      <div class="bg-primary text-white p-2.5 rounded-xl text-xs shadow-sm">
+        ${msg}
+      </div>
+    `;
+    chatBox.appendChild(bubble);
+    input.value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  // Startup in Auth portal view
+  window.addEventListener('DOMContentLoaded', () => {
+    navigate('role-selection');
+  });
+</script>
+
+
+<script class="">function toggleLocationModal() { const modal = document.getElementById('modal-location'); if (!modal) return; if (modal.classList.contains('hidden')) { modal.classList.remove('hidden'); const search = document.getElementById('localitySearchInput'); if (search) { search.value = ''; filterLocalities(''); search.focus(); } } else { modal.classList.add('hidden'); } } function filterLocalities(query) { const q = (query || '').toLowerCase().trim(); const items = document.querySelectorAll('.locality-item'); items.forEach(item => { const name = (item.getAttribute('data-name') || '').toLowerCase(); const text = item.innerText.toLowerCase(); if (!q || name.includes(q) || text.includes(q)) { item.classList.remove('hidden'); } else { item.classList.add('hidden'); } }); } function selectLocality(localityName, ward, distance) { const headerArea = document.getElementById('headerResidentArea'); if (headerArea) { headerArea.innerText = localityName + ', Rajahmundry'; } const welcomeAddr = document.getElementById('welcomeResidentAddress'); if (welcomeAddr) { welcomeAddr.innerText = 'Krishna Residency, Flat #402, ' + localityName + ', Rajahmundry • RMC ' + ward; } const featLoc = document.getElementById('featLocationText'); if (featLoc) { featLoc.innerText = 'Krishna Residency, ' + localityName; } const allItems = document.querySelectorAll('.locality-item'); allItems.forEach(item => { const itemName = item.getAttribute('data-name'); if (itemName === localityName) { item.className = 'locality-item w-full p-2.5 rounded-xl border border-primary bg-emerald-50/50 flex items-center justify-between hover:bg-emerald-100/50 text-left transition-colors'; const badge = item.querySelector('span:last-child'); if (badge) { badge.className = 'px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold'; badge.innerText = 'Current'; } } else { item.className = 'locality-item w-full p-2.5 rounded-xl border border-slate-100 hover:border-primary hover:bg-slate-50 flex items-center justify-between text-left transition-colors'; const badge = item.querySelector('span:last-child'); if (badge && badge.innerText === 'Current') { badge.className = 'text-[11px] font-semibold text-emerald-700'; badge.innerText = 'Available'; } } }); toggleLocationModal(); showToast('Location updated to ' + localityName + ' (' + ward + '). Showing nearby pros.'); }</script><script class="">function openMessagesInboxModal(threadKey) { const modal = document.getElementById('modal-messages-inbox'); if (!modal) return; modal.classList.remove('hidden'); if (threadKey) { selectThread(threadKey); } const input = document.getElementById('modalChatInput'); if (input) input.focus(); } function closeMessagesInboxModal() { const modal = document.getElementById('modal-messages-inbox'); if (modal) modal.classList.add('hidden'); } function insertQuickReply(text) { const input = document.getElementById('modalChatInput'); if (input) { input.value = text; input.focus(); } } function sendActiveStreamMessage(e) { if (e && e.preventDefault) e.preventDefault(); const input = document.getElementById('modalChatInput'); const msg = (input ? input.value : '').trim(); if (!msg) return; const stream = document.getElementById('activeChatStream'); if (stream) { const row = document.createElement('div'); row.className = 'flex items-start gap-2 max-w-[85%] ml-auto justify-end'; row.innerHTML = `<div class="bg-primary text-white p-3 rounded-2xl rounded-tr-none text-xs shadow-sm"><p>${msg}</p><span class="text-[9px] text-emerald-200 block mt-1 text-right">Just now • ✓✓</span></div>`; stream.appendChild(row); stream.scrollTop = stream.scrollHeight; } if (input) input.value = ''; showToast('Message sent to resident!'); } function selectThread(threadKey) { const ananyaItem = document.getElementById('thread-ananya'); const venkateshItem = document.getElementById('thread-venkatesh'); const ratnamItem = document.getElementById('thread-ratnam'); const nameEl = document.getElementById('chatActiveName'); const addrEl = document.getElementById('chatActiveAddress'); const avatarEl = document.getElementById('chatActiveAvatar'); const stream = document.getElementById('activeChatStream'); [ananyaItem, venkateshItem, ratnamItem].forEach(el => { if (el) { el.className = 'p-3 bg-white hover:bg-slate-50 cursor-pointer transition-all'; } }); if (threadKey === 'ananya') { if (ananyaItem) ananyaItem.className = 'p-3 bg-emerald-50/70 border-l-4 border-primary cursor-pointer transition-all'; if (nameEl) nameEl.innerText = 'Ananya Sharma'; if (addrEl) addrEl.innerText = 'Krishna Residency, Flat #402, Danavaipeta • Gate Pass #0402'; if (avatarEl) { avatarEl.innerText = 'AS'; avatarEl.className = 'w-9 h-9 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center shrink-0'; } if (stream) { stream.innerHTML = `<div class="flex items-start gap-2 max-w-[85%]"><div class="w-7 h-7 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center shrink-0">AS</div><div class="bg-white p-3 rounded-2xl rounded-tl-none text-xs text-slate-800 shadow-sm border border-slate-200"><p>Namaskaram Ramesh ji! I saw your offer of ₹299 for the 32A MCB tripping repair.</p><span class="text-[9px] text-slate-400 block mt-1 text-right">09:12 AM</span></div></div><div class="flex items-start gap-2 max-w-[85%] ml-auto justify-end"><div class="bg-primary text-white p-3 rounded-2xl rounded-tr-none text-xs shadow-sm"><p>Namaskaram Ananya garu. Yes, I have genuine 32A Schneider breakers and a clamp multimeter with me in Danavaipeta.</p><span class="text-[9px] text-emerald-200 block mt-1 text-right">09:15 AM • ✓✓</span></div></div><div class="flex items-start gap-2 max-w-[85%]"><div class="w-7 h-7 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center shrink-0">AS</div><div class="bg-white p-3 rounded-2xl rounded-tl-none text-xs text-slate-800 shadow-sm border border-slate-200"><p>Hello Ramesh ji, can you arrive 15 minutes early for the MCB tripping issue? Gate security is already informed for flat #402.</p><span class="text-[9px] text-slate-400 block mt-1 text-right">10 mins ago</span></div></div>`; stream.scrollTop = stream.scrollHeight; } } else if (threadKey === 'venkatesh') { if (venkateshItem) venkateshItem.className = 'p-3 bg-emerald-50/70 border-l-4 border-primary cursor-pointer transition-all'; if (nameEl) nameEl.innerText = 'K. Venkatesh'; if (addrEl) addrEl.innerText = 'Prakash Nagar, Near RTC Complex • Ward 21'; if (avatarEl) { avatarEl.innerText = 'KV'; avatarEl.className = 'w-9 h-9 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center shrink-0'; } if (stream) { stream.innerHTML = `<div class="flex items-start gap-2 max-w-[85%]"><div class="w-7 h-7 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold flex items-center justify-center shrink-0">KV</div><div class="bg-white p-3 rounded-2xl rounded-tl-none text-xs text-slate-800 shadow-sm border border-slate-200"><p>Regarding the ceiling fan and LED wiring slot tomorrow morning, is 11 AM confirmed?</p><span class="text-[9px] text-slate-400 block mt-1 text-right">1 hour ago</span></div></div>`; stream.scrollTop = stream.scrollHeight; } } else if (threadKey === 'ratnam') { if (ratnamItem) ratnamItem.className = 'p-3 bg-emerald-50/70 border-l-4 border-primary cursor-pointer transition-all'; if (nameEl) nameEl.innerText = 'S. Ratnam'; if (addrEl) addrEl.innerText = 'Aryapuram, Devichowk Area • Ward 9'; if (avatarEl) { avatarEl.innerText = 'SR'; avatarEl.className = 'w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0'; } if (stream) { stream.innerHTML = `<div class="flex items-start gap-2 max-w-[85%]"><div class="w-7 h-7 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">SR</div><div class="bg-white p-3 rounded-2xl rounded-tl-none text-xs text-slate-800 shadow-sm border border-slate-200"><p>Need quote for 16A water heater power point installation in bathroom.</p><span class="text-[9px] text-slate-400 block mt-1 text-right">Yesterday</span></div></div>`; stream.scrollTop = stream.scrollHeight; } } }</script></body></html>
